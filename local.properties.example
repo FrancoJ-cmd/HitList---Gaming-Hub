@@ -1,0 +1,3 @@
+# Clave gratuita de NewsAPI: https://newsapi.org/register
+# Sin esta clave la pantalla de noticias muestra un mensaje informativo.
+NEWS_API_KEY=c3c581fdb2264669abb5562bcf536fd9

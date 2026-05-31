@@ -1,0 +1,20 @@
+package com.hitlist.domain.usecase
+
+import com.hitlist.domain.entity.NewsArticle
+import com.hitlist.domain.repository.NewsRepository
+
+class GetGameNewsUseCaseImpl(
+    private val newsRepository: NewsRepository
+) : GetGameNewsUseCase {
+
+    override suspend fun execute(query: String, appId: Int?): Result<List<NewsArticle>> =
+        if (appId != null) {
+            newsRepository.getNewsForGame(appId)
+        } else {
+            newsRepository.getNews(query.trim().ifBlank { DEFAULT_QUERY })
+        }
+
+    companion object {
+        const val DEFAULT_QUERY = "gaming"
+    }
+}
