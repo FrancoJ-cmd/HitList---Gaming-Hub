@@ -40,7 +40,12 @@ object HitListDependencyInjector {
     private val newsApiProxy by lazy { NewsApiProxy.create(newsApiKey) }
 
     private val gameRepository = GameRepositoryImpl(
-        localDataSource, steamSpyProxy, steamWebProxy, steamStoreProxy, cheapSharkProxy
+        localDataSource,
+        rankingSource = steamSpyProxy,
+        playerCountSource = steamWebProxy,
+        metadataSource = steamStoreProxy,
+        reviewSource = steamStoreProxy,
+        dealsSource = cheapSharkProxy
     )
     private val newsRepository by lazy {
         NewsRepositoryImpl(localDataSource, newsApiProxy, steamNewsProxy)

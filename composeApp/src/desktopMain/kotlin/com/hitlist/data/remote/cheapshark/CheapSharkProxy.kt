@@ -1,5 +1,6 @@
 package com.hitlist.data.remote.cheapshark
 
+import com.hitlist.data.remote.GameDealsSource
 import com.hitlist.domain.entity.Deal
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -12,9 +13,9 @@ import io.ktor.http.encodeURLParameter
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 
-class CheapSharkProxy(private val client: HttpClient) {
+class CheapSharkProxy(private val client: HttpClient) : GameDealsSource {
 
-    suspend fun getDeals(gameName: String): List<Deal> = runCatching {
+    override suspend fun getDeals(gameName: String): List<Deal> = runCatching {
         val encoded = gameName.encodeURLParameter()
         val searchResults = client.get("/api/1.0/games?title=$encoded&limit=3")
             .body<List<CheapSharkSearchResultDto>>()

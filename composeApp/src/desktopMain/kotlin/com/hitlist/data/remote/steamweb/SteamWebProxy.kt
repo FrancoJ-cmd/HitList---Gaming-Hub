@@ -8,11 +8,12 @@ import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.get
 import io.ktor.http.URLProtocol
 import io.ktor.serialization.kotlinx.json.json
+import com.hitlist.data.remote.PlayerCountSource
 import kotlinx.serialization.json.Json
 
-class SteamWebProxy(private val client: HttpClient) {
+class SteamWebProxy(private val client: HttpClient) : PlayerCountSource {
 
-    suspend fun getCurrentPlayers(appId: Int): Int = runCatching {
+    override suspend fun getCurrentPlayers(appId: Int): Int = runCatching {
         client.get("/ISteamUserStats/GetNumberOfCurrentPlayers/v1/?appid=$appId")
             .body<CurrentPlayersResponseDto>()
             .response.playerCount

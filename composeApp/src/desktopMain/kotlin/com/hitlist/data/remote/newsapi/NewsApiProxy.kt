@@ -1,5 +1,6 @@
 package com.hitlist.data.remote.newsapi
 
+import com.hitlist.data.remote.GeneralNewsSource
 import com.hitlist.domain.entity.NewsArticle
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -15,9 +16,9 @@ import kotlinx.serialization.json.Json
 class NewsApiProxy(
     private val client: HttpClient,
     private val apiKey: String
-) {
+) : GeneralNewsSource {
 
-    suspend fun getNews(query: String): List<NewsArticle> {
+    override suspend fun getNews(query: String): List<NewsArticle> {
         if (apiKey.isBlank()) return emptyList()
         return runCatching {
             val encoded = "\"$query\"".encodeURLParameter()

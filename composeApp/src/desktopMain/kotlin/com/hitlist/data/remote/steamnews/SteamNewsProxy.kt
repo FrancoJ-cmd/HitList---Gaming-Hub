@@ -1,5 +1,6 @@
 package com.hitlist.data.remote.steamnews
 
+import com.hitlist.data.remote.GameNewsSource
 import com.hitlist.domain.entity.NewsArticle
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -14,10 +15,10 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-class SteamNewsProxy(private val client: HttpClient) {
+class SteamNewsProxy(private val client: HttpClient) : GameNewsSource {
 
-    suspend fun getNewsForGame(appId: Int, count: Int = 10): List<NewsArticle> = runCatching {
-        client.get("/ISteamNews/GetNewsForApp/v2/?appid=$appId&count=$count&maxlength=300&format=json")
+    override suspend fun getNewsForGame(appId: Int): List<NewsArticle> = runCatching {
+        client.get("/ISteamNews/GetNewsForApp/v2/?appid=$appId&count=10&maxlength=300&format=json")
             .body<SteamNewsResponseDto>()
             .appNews
             ?.newsItems

@@ -41,8 +41,8 @@ fabric.properties
 /.gradle/
 /build/
 
-# API keys and secrets — nunca commitear
-local.properties
+# Cache de datos en disco
+/cache/
 
 .idea/AndroidProjectSystem.xml
 .idea/codeStyles/
