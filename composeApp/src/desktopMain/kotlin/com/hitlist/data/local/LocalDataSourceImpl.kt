@@ -85,7 +85,6 @@ class LocalDataSourceImpl(cacheDir: File = defaultCacheDir()) : LocalDataSource 
         File(rankedGamesFile.parentFile, "news_${query.hashCode()}.json")
 
     companion object {
-        fun defaultCacheDir() =
-            File(System.getProperty("user.home"), ".hitlist/cache")
+        fun defaultCacheDir() = File("cache")
     }
 }

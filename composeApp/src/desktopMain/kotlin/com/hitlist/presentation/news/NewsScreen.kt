@@ -1,5 +1,6 @@
 package com.hitlist.presentation.news
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -15,13 +16,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.hitlist.domain.entity.NewsArticle
-import com.hitlist.presentation.common.UiState
+import com.hitlist.presentation.common.*
 import java.awt.Desktop
 import java.net.URI
 
@@ -47,14 +49,27 @@ fun NewsScreen(
     }
 
     Scaffold(
+        containerColor = BackgroundColor,
         topBar = {
             TopAppBar(
-                title = { Text(if (query == "gaming") "Gaming News" else "Noticias: $query") },
+                title = {
+                    Column {
+                        Text(
+                            if (query == "gaming") "Gaming News" else query,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 16.sp
+                        )
+                        if (appId != null) {
+                            Text("Noticias de Steam", fontSize = 11.sp, color = OnSurfaceDim)
+                        }
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver", tint = OnSurfaceDim)
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = SurfaceColor)
             )
         }
     ) { padding ->
@@ -63,11 +78,14 @@ fun NewsScreen(
                 ApiKeyMissingContent()
             } else {
                 when (val articlesState = state.articlesState) {
-                    is UiState.Loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
+                    is UiState.Loading -> CircularProgressIndicator(
+                        Modifier.align(Alignment.Center),
+                        color = Indigo
+                    )
                     is UiState.Success -> ArticleList(articles = articlesState.data)
                     is UiState.Error -> ErrorContent(
                         message = articlesState.message,
-                        onRetry = { viewModel.loadNews(query) }
+                        onRetry = { viewModel.loadNews(query, appId) }
                     )
                 }
             }
@@ -79,11 +97,17 @@ fun NewsScreen(
 private fun ArticleList(articles: List<NewsArticle>) {
     if (articles.isEmpty()) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("No se encontraron artículos")
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("📰", fontSize = 40.sp)
+                Text("Sin artículos disponibles", color = OnSurfaceDim)
+            }
         }
         return
     }
-    LazyColumn(contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    LazyColumn(
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
         items(articles, key = { it.url }) { article ->
             ArticleCard(article = article)
         }
@@ -92,45 +116,63 @@ private fun ArticleList(articles: List<NewsArticle>) {
 
 @Composable
 private fun ArticleCard(article: NewsArticle) {
-    Card(
-        modifier = Modifier
+    Row(
+        Modifier
             .fillMaxWidth()
-            .clickable { openUrl(article.url) },
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(SurfaceColor)
+            .clickable { openUrl(article.url) }
+            .padding(14.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        verticalAlignment = Alignment.Top
     ) {
-        Row(Modifier.padding(12.dp)) {
-            article.imageUrl?.let { imageUrl ->
-                AsyncImage(
-                    model = imageUrl,
-                    contentDescription = null,
-                    modifier = Modifier.size(80.dp).clip(RoundedCornerShape(6.dp))
-                )
-                Spacer(Modifier.width(12.dp))
-            }
-            Column(Modifier.weight(1f)) {
+        article.imageUrl?.let { imageUrl ->
+            AsyncImage(
+                model = imageUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.size(90.dp, 64.dp).clip(RoundedCornerShape(8.dp))
+            )
+        } ?: Box(
+            Modifier.size(90.dp, 64.dp).clip(RoundedCornerShape(8.dp)).background(SurfaceVariantColor),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("📰", fontSize = 22.sp)
+        }
+
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Text(
+                text = article.title,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 14.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                lineHeight = 20.sp,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            article.description?.let { desc ->
                 Text(
-                    text = article.title,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 14.sp,
+                    text = desc,
+                    fontSize = 12.sp,
                     maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    color = OnSurfaceDim,
+                    lineHeight = 18.sp
                 )
-                Spacer(Modifier.height(4.dp))
-                article.description?.let {
-                    Text(
-                        text = it,
-                        fontSize = 12.sp,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(Modifier.height(4.dp))
+            }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(IndigoDim.copy(alpha = 0.5f))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(article.sourceName, fontSize = 10.sp, color = Indigo, fontWeight = FontWeight.SemiBold)
                 }
-                Text(
-                    text = "${article.sourceName} · ${article.publishedAt.take(10)}",
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                Text(article.publishedAt.take(10), fontSize = 10.sp, color = OnSurfaceDim)
             }
         }
     }
@@ -139,15 +181,25 @@ private fun ArticleCard(article: NewsArticle) {
 @Composable
 private fun ApiKeyMissingContent() {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
-            Text("NewsAPI no configurada", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-            Spacer(Modifier.height(8.dp))
-            Text(
-                "Creá un archivo local.properties en la raíz del proyecto con:\nNEWS_API_KEY=tu_clave\n\nObtené tu clave gratis en newsapi.org",
-                fontSize = 13.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                lineHeight = 20.sp
-            )
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier
+                .padding(32.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(SurfaceColor)
+                .padding(32.dp)
+        ) {
+            Text("🔑", fontSize = 40.sp)
+            Text("NewsAPI no configurada", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            HorizontalDivider(color = OutlineColor)
+            Text("Creá local.properties en la raíz del proyecto:", fontSize = 13.sp, color = OnSurfaceDim)
+            Box(
+                Modifier.clip(RoundedCornerShape(8.dp)).background(SurfaceVariantColor).padding(horizontal = 16.dp, vertical = 10.dp)
+            ) {
+                Text("NEWS_API_KEY=tu_clave_aquí", fontSize = 13.sp, color = ScoreGreen, fontWeight = FontWeight.Medium)
+            }
+            Text("Clave gratuita en newsapi.org", fontSize = 12.sp, color = Indigo)
         }
     }
 }
@@ -155,12 +207,14 @@ private fun ApiKeyMissingContent() {
 @Composable
 private fun ErrorContent(message: String, onRetry: () -> Unit) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("⚠", fontSize = 32.sp)
             Text("Error al cargar noticias", fontWeight = FontWeight.SemiBold)
+            Text(message, fontSize = 12.sp, color = OnSurfaceDim)
             Spacer(Modifier.height(4.dp))
-            Text(message, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.height(12.dp))
-            Button(onClick = onRetry) { Text("Reintentar") }
+            Button(onClick = onRetry, colors = ButtonDefaults.buttonColors(containerColor = Indigo)) {
+                Text("Reintentar")
+            }
         }
     }
 }

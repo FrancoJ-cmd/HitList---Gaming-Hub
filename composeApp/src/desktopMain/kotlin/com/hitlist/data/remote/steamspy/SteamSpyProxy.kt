@@ -8,17 +8,20 @@ import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.get
 import io.ktor.http.URLProtocol
 import io.ktor.serialization.kotlinx.json.json
+import com.hitlist.data.remote.GameRankingSource
+import com.hitlist.data.remote.GameSeed
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 
-class SteamSpyProxy(private val client: HttpClient) {
+class SteamSpyProxy(private val client: HttpClient) : GameRankingSource {
 
-    suspend fun getTop100Games(): List<SteamSpyGameDto> {
+    override suspend fun getTopGames(): List<GameSeed> {
         val raw = client.get("/api.php?request=top100in2weeks").body<JsonObject>()
         val json = Json { ignoreUnknownKeys = true }
         return raw.values.mapNotNull { element ->
             runCatching { json.decodeFromJsonElement<SteamSpyGameDto>(element) }.getOrNull()
+                ?.let { GameSeed(it.appId, it.name) }
         }
     }
 

@@ -2,10 +2,11 @@ package com.hitlist.data.repository
 
 import com.hitlist.data.local.CachePolicy
 import com.hitlist.data.local.LocalDataSource
-import com.hitlist.data.remote.cheapshark.CheapSharkProxy
-import com.hitlist.data.remote.steamspy.SteamSpyProxy
-import com.hitlist.data.remote.steamstore.SteamStoreProxy
-import com.hitlist.data.remote.steamweb.SteamWebProxy
+import com.hitlist.data.remote.GameDealsSource
+import com.hitlist.data.remote.GameMetadataSource
+import com.hitlist.data.remote.GameRankingSource
+import com.hitlist.data.remote.GameReviewSource
+import com.hitlist.data.remote.PlayerCountSource
 import com.hitlist.domain.entity.GameDetail
 import com.hitlist.domain.entity.RankedGame
 import com.hitlist.domain.repository.GameRepository
@@ -16,10 +17,11 @@ import kotlinx.coroutines.coroutineScope
 
 class GameRepositoryImpl(
     private val localDataSource: LocalDataSource,
-    private val steamSpyProxy: SteamSpyProxy,
-    private val steamWebProxy: SteamWebProxy,
-    private val steamStoreProxy: SteamStoreProxy,
-    private val cheapSharkProxy: CheapSharkProxy
+    private val rankingSource: GameRankingSource,
+    private val playerCountSource: PlayerCountSource,
+    private val metadataSource: GameMetadataSource,
+    private val reviewSource: GameReviewSource,
+    private val dealsSource: GameDealsSource
 ) : GameRepository {
 
     override suspend fun getRankedGames(): Result<Pair<List<RankedGame>, Boolean>> {
@@ -35,35 +37,30 @@ class GameRepositoryImpl(
             localDataSource.saveRankedGames(withTrending)
             withTrending to false
         }.recoverCatching { exception ->
-            if (cached != null) {
-                cached.first to true
-            } else {
-                throw exception
-            }
+            if (cached != null) cached.first to true else throw exception
         }
     }
 
     private suspend fun fetchFreshRanking(): List<RankedGame> = coroutineScope {
-        val seedGames = steamSpyProxy.getTop100Games()
+        val seeds = rankingSource.getTopGames()
 
-        val playerCountsDeferred = seedGames.map { game ->
-            async { game.appId to steamWebProxy.getCurrentPlayers(game.appId) }
+        val playerCountsDeferred = seeds.map { seed ->
+            async { seed.appId to playerCountSource.getCurrentPlayers(seed.appId) }
         }
-        val reviewsDeferred = seedGames.map { game ->
-            async { game.appId to steamStoreProxy.getAppReviews(game.appId) }
+        val reviewsDeferred = seeds.map { seed ->
+            async { seed.appId to reviewSource.getGameReviews(seed.appId) }
         }
 
         val playerCounts = playerCountsDeferred.awaitAll().toMap()
         val reviews = reviewsDeferred.awaitAll().toMap()
-
         val maxPlayers = playerCounts.values.maxOrNull() ?: 0
 
-        seedGames.mapNotNull { game ->
-            val players = playerCounts[game.appId] ?: 0
-            val review = reviews[game.appId]
+        seeds.mapNotNull { seed ->
+            val players = playerCounts[seed.appId] ?: 0
+            val review = reviews[seed.appId]
             val totalReviews = review?.totalReviews ?: 0
             val positiveRatio = if (totalReviews > 0)
-                (review?.totalPositive ?: 0).toDouble() / totalReviews
+                review!!.totalPositive.toDouble() / totalReviews
             else 0.0
 
             val score = GetRankedGamesUseCaseImpl.calculateScore(
@@ -72,9 +69,9 @@ class GameRepositoryImpl(
             if (score == 0.0 && totalReviews < GetRankedGamesUseCaseImpl.MIN_REVIEWS_THRESHOLD) return@mapNotNull null
 
             RankedGame(
-                steamAppId = game.appId,
-                name = game.name,
-                headerImageUrl = "https://cdn.akamai.steamstatic.com/steam/apps/${game.appId}/header.jpg",
+                steamAppId = seed.appId,
+                name = seed.name,
+                headerImageUrl = "https://cdn.akamai.steamstatic.com/steam/apps/${seed.appId}/header.jpg",
                 score = score,
                 currentPlayers = players,
                 positiveRatio = positiveRatio,
@@ -93,28 +90,28 @@ class GameRepositoryImpl(
         }
 
         return runCatching {
-            val appDetails = steamStoreProxy.getAppDetails(appId)
+            val metadata = metadataSource.getGameMetadata(appId)
                 ?: throw Exception("Game details not available for appId=$appId")
-            val review = steamStoreProxy.getAppReviews(appId)
-            val deals = cheapSharkProxy.getDeals(name)
+            val review = reviewSource.getGameReviews(appId)
+            val deals = dealsSource.getDeals(name)
 
             val totalReviews = review?.totalReviews ?: 0
             val positiveRatio = if (totalReviews > 0)
-                (review?.totalPositive ?: 0).toDouble() / totalReviews
+                review!!.totalPositive.toDouble() / totalReviews
             else 0.0
 
             GameDetail(
                 steamAppId = appId,
-                name = appDetails.name,
-                shortDescription = appDetails.shortDescription,
-                headerImageUrl = appDetails.headerImage,
-                screenshots = appDetails.screenshots.take(5).map { it.pathFull },
-                metacriticScore = appDetails.metacritic?.score,
-                genres = appDetails.genres.map { it.description },
-                developers = appDetails.developers,
-                releaseDate = appDetails.releaseDate?.date,
-                isFree = appDetails.isFree,
-                currentPlayers = steamWebProxy.getCurrentPlayers(appId),
+                name = metadata.name,
+                shortDescription = metadata.shortDescription,
+                headerImageUrl = metadata.headerImageUrl,
+                screenshots = metadata.screenshots,
+                metacriticScore = metadata.metacriticScore,
+                genres = metadata.genres,
+                developers = metadata.developers,
+                releaseDate = metadata.releaseDate,
+                isFree = metadata.isFree,
+                currentPlayers = playerCountSource.getCurrentPlayers(appId),
                 positiveRatio = positiveRatio,
                 reviewScoreDesc = review?.reviewScoreDesc ?: "",
                 totalReviews = totalReviews,

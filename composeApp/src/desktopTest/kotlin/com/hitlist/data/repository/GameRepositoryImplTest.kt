@@ -2,15 +2,16 @@ package com.hitlist.data.repository
 
 import com.hitlist.data.fakes.LocalDataSourceFake
 import com.hitlist.data.local.CachePolicy
+import com.hitlist.data.remote.GameDealsSource
+import com.hitlist.data.remote.GameMetadataSource
+import com.hitlist.data.remote.GameRankingSource
+import com.hitlist.data.remote.GameReviewSource
+import com.hitlist.data.remote.GameSeed
+import com.hitlist.data.remote.PlayerCountSource
 import com.hitlist.domain.entity.RankedGame
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
-import com.hitlist.data.remote.cheapshark.CheapSharkProxy
-import com.hitlist.data.remote.steamspy.SteamSpyProxy
-import com.hitlist.data.remote.steamspy.SteamSpyGameDto
-import com.hitlist.data.remote.steamstore.SteamStoreProxy
-import com.hitlist.data.remote.steamweb.SteamWebProxy
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -18,17 +19,18 @@ import kotlin.test.assertTrue
 
 class GameRepositoryImplTest {
 
-    private val steamSpy = mockk<SteamSpyProxy>()
-    private val steamWeb = mockk<SteamWebProxy>()
-    private val steamStore = mockk<SteamStoreProxy>()
-    private val cheapShark = mockk<CheapSharkProxy>()
+    private val rankingSource = mockk<GameRankingSource>()
+    private val playerCountSource = mockk<PlayerCountSource>()
+    private val metadataSource = mockk<GameMetadataSource>()
+    private val reviewSource = mockk<GameReviewSource>()
+    private val dealsSource = mockk<GameDealsSource>()
 
-    private fun givenGame(appId: Int = 570, isTrending: Boolean = false) = RankedGame(
-        appId, "Dota 2", "", 0.7, 400000, 0.8, "Very Positive", 2000000, emptyList(), isTrending
+    private fun givenGame(appId: Int = 570) = RankedGame(
+        appId, "Dota 2", "", 0.7, 400000, 0.8, "Very Positive", 2000000, emptyList(), false
     )
 
     private fun givenRepo(local: LocalDataSourceFake) = GameRepositoryImpl(
-        local, steamSpy, steamWeb, steamStore, cheapShark
+        local, rankingSource, playerCountSource, metadataSource, reviewSource, dealsSource
     )
 
     @Test
@@ -43,7 +45,7 @@ class GameRepositoryImplTest {
         assertTrue(result.isSuccess)
         assertEquals(cached, result.getOrThrow().first)
         assertFalse(result.getOrThrow().second)
-        coVerify(exactly = 0) { steamSpy.getTop100Games() }
+        coVerify(exactly = 0) { rankingSource.getTopGames() }
     }
 
     @Test
@@ -53,20 +55,20 @@ class GameRepositoryImplTest {
         val expiredAt = System.currentTimeMillis() - CachePolicy.LIVE_PLAYERS_TTL_MS - 1000
         local.seedRankedGames(staleGames, expiredAt)
 
-        coEvery { steamSpy.getTop100Games() } throws Exception("No network")
+        coEvery { rankingSource.getTopGames() } throws Exception("No network")
         val repo = givenRepo(local)
 
         val result = runBlocking { repo.getRankedGames() }
 
         assertTrue(result.isSuccess)
-        assertTrue(result.getOrThrow().second) // isStale = true
+        assertTrue(result.getOrThrow().second)
         assertEquals(staleGames, result.getOrThrow().first)
     }
 
     @Test
     fun `given no cache and no network, returns failure`() {
         val local = LocalDataSourceFake()
-        coEvery { steamSpy.getTop100Games() } throws Exception("No network")
+        coEvery { rankingSource.getTopGames() } throws Exception("No network")
         val repo = givenRepo(local)
 
         val result = runBlocking { repo.getRankedGames() }
@@ -80,15 +82,15 @@ class GameRepositoryImplTest {
         val expiredAt = System.currentTimeMillis() - CachePolicy.LIVE_PLAYERS_TTL_MS - 1000
         local.seedRankedGames(listOf(givenGame()), expiredAt)
 
-        coEvery { steamSpy.getTop100Games() } returns listOf(SteamSpyGameDto(570, "Dota 2"))
-        coEvery { steamWeb.getCurrentPlayers(570) } returns 400000
-        coEvery { steamStore.getAppReviews(570) } returns null
+        coEvery { rankingSource.getTopGames() } returns listOf(GameSeed(570, "Dota 2"))
+        coEvery { playerCountSource.getCurrentPlayers(570) } returns 400000
+        coEvery { reviewSource.getGameReviews(570) } returns null
 
         val repo = givenRepo(local)
         val result = runBlocking { repo.getRankedGames() }
 
         assertTrue(result.isSuccess)
-        assertFalse(result.getOrThrow().second) // isStale = false
+        assertFalse(result.getOrThrow().second)
     }
 }
 
