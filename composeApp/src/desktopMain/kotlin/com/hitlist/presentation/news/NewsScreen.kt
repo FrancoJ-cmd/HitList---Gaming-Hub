@@ -84,7 +84,7 @@ fun NewsScreen(
                     )
                     is UiState.Success -> ArticleList(articles = articlesState.data)
                     is UiState.Error -> ErrorContent(
-                        message = articlesState.message,
+                        message = articlesState.error.toUserMessage(),
                         onRetry = { viewModel.loadNews(query, appId) }
                     )
                 }

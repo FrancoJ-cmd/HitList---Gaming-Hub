@@ -1,7 +1,9 @@
 package com.hitlist.presentation.detail
 
 import com.hitlist.domain.entity.GameDetail
+import com.hitlist.domain.error.AppError
 import com.hitlist.domain.fakes.GetGameDetailUseCaseFake
+import com.hitlist.domain.result.AppResult
 import com.hitlist.presentation.common.UiState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -31,7 +33,7 @@ class DetailViewModelTest {
     @Test
     fun `given successful detail load, state is Success`() = runTest {
         val detail = givenDetail()
-        val useCase = GetGameDetailUseCaseFake(Result.success(detail))
+        val useCase = GetGameDetailUseCaseFake(AppResult.Success(detail))
         val vm = DetailViewModel(useCase)
         vm.loadDetail(570, "Dota 2")
         testDispatcher.scheduler.advanceUntilIdle()
@@ -43,7 +45,7 @@ class DetailViewModelTest {
 
     @Test
     fun `given detail failure, state is Error`() = runTest {
-        val useCase = GetGameDetailUseCaseFake(Result.failure(Exception("Not found")))
+        val useCase = GetGameDetailUseCaseFake(AppResult.Failure(AppError.Network.NoConnection))
         val vm = DetailViewModel(useCase)
         vm.loadDetail(99999, "Unknown")
         testDispatcher.scheduler.advanceUntilIdle()
@@ -54,7 +56,7 @@ class DetailViewModelTest {
     @Test
     fun `given CheapShark unavailable, state is Success with empty deals`() = runTest {
         val detail = givenDetail().copy(deals = emptyList())
-        val useCase = GetGameDetailUseCaseFake(Result.success(detail))
+        val useCase = GetGameDetailUseCaseFake(AppResult.Success(detail))
         val vm = DetailViewModel(useCase)
         vm.loadDetail(570, "Dota 2")
         testDispatcher.scheduler.advanceUntilIdle()

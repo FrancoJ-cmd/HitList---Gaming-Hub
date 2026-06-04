@@ -2,9 +2,11 @@ package com.hitlist.domain.usecase
 
 import com.hitlist.data.fakes.GameRepositoryFake
 import com.hitlist.domain.entity.RankedGame
+import com.hitlist.domain.result.AppResult
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 class GetRankedGamesUseCaseImplTest {
@@ -65,23 +67,23 @@ class GetRankedGamesUseCaseImplTest {
     @Test
     fun `given games with identical score, original order is preserved`() {
         val repo = GameRepositoryFake(
-            rankedGamesResult = Result.success(
+            rankedGamesResult = AppResult.Success(
                 listOf(givenGame(1), givenGame(2), givenGame(3)) to false
             )
         )
         val useCase = GetRankedGamesUseCaseImpl(repo)
         val result = runBlocking { useCase.execute() }
-        val games = result.getOrThrow().first
-        assertEquals(listOf(1, 2, 3), games.map { it.steamAppId })
+        assertIs<AppResult.Success<Pair<List<RankedGame>, Boolean>>>(result)
+        assertEquals(listOf(1, 2, 3), result.data.first.map { it.steamAppId })
     }
 
     @Test
     fun `given empty list from SteamSpy, returns empty list without exception`() {
-        val repo = GameRepositoryFake(rankedGamesResult = Result.success(emptyList<RankedGame>() to false))
+        val repo = GameRepositoryFake(rankedGamesResult = AppResult.Success(emptyList<RankedGame>() to false))
         val useCase = GetRankedGamesUseCaseImpl(repo)
         val result = runBlocking { useCase.execute() }
-        assertTrue(result.isSuccess)
-        assertTrue(result.getOrThrow().first.isEmpty())
+        assertIs<AppResult.Success<Pair<List<RankedGame>, Boolean>>>(result)
+        assertTrue(result.data.first.isEmpty())
     }
 
     @Test
@@ -89,9 +91,9 @@ class GetRankedGamesUseCaseImplTest {
         val previous = listOf(givenGame(1), givenGame(2), givenGame(3))
         val current = listOf(givenGame(2), givenGame(1), givenGame(3))
         val result = GetRankedGamesUseCaseImpl.markTrending(current, previous)
-        assertTrue(result[0].isTrending)  // game 2 moved up (was 1, now 0)
-        assertFalse(result[1].isTrending) // game 1 moved down
-        assertFalse(result[2].isTrending) // game 3 stayed
+        assertTrue(result[0].isTrending)
+        assertFalse(result[1].isTrending)
+        assertFalse(result[2].isTrending)
     }
 
     @Test
@@ -100,6 +102,26 @@ class GetRankedGamesUseCaseImplTest {
         val current = listOf(givenGame(1), givenGame(99))
         val result = GetRankedGamesUseCaseImpl.markTrending(current, previous)
         assertFalse(result[1].isTrending)
+    }
+
+    @Test
+    fun `describeReviewScore — overwhelmingly positive when ratio over 95 percent and 500 plus reviews`() {
+        assertEquals("Overwhelmingly Positive", GetRankedGamesUseCaseImpl.describeReviewScore(1900, 100))
+    }
+
+    @Test
+    fun `describeReviewScore — very positive when ratio over 80 percent`() {
+        assertEquals("Very Positive", GetRankedGamesUseCaseImpl.describeReviewScore(800, 200))
+    }
+
+    @Test
+    fun `describeReviewScore — mixed when ratio between 40 and 70 percent`() {
+        assertEquals("Mixed", GetRankedGamesUseCaseImpl.describeReviewScore(500, 500))
+    }
+
+    @Test
+    fun `describeReviewScore — empty string when fewer than 10 reviews`() {
+        assertEquals("", GetRankedGamesUseCaseImpl.describeReviewScore(8, 1))
     }
 }
 
