@@ -83,7 +83,7 @@ fun NewsScreen(
                         color = Indigo
                     )
                     is UiState.Success -> ArticleList(articles = articlesState.data)
-                    is UiState.Error -> ErrorContent(
+                    is UiState.Error -> ErrorScreen(
                         message = articlesState.error.toUserMessage(),
                         onRetry = { viewModel.loadNews(query, appId) }
                     )
@@ -204,20 +204,6 @@ private fun ApiKeyMissingContent() {
     }
 }
 
-@Composable
-private fun ErrorContent(message: String, onRetry: () -> Unit) {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("⚠", fontSize = 32.sp)
-            Text("Error al cargar noticias", fontWeight = FontWeight.SemiBold)
-            Text(message, fontSize = 12.sp, color = OnSurfaceDim)
-            Spacer(Modifier.height(4.dp))
-            Button(onClick = onRetry, colors = ButtonDefaults.buttonColors(containerColor = Indigo)) {
-                Text("Reintentar")
-            }
-        }
-    }
-}
 
 private fun openUrl(url: String) {
     runCatching { Desktop.getDesktop().browse(URI(url)) }

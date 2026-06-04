@@ -61,7 +61,7 @@ fun DetailScreen(
                     color = Indigo
                 )
                 is UiState.Success -> DetailContent(detail = detailState.data, onNewsClick = onNewsClick)
-                is UiState.Error -> ErrorContent(
+                is UiState.Error -> ErrorScreen(
                     message = detailState.error.toUserMessage(),
                     onRetry = { viewModel.loadDetail(appId, name) }
                 )
@@ -353,20 +353,6 @@ private fun DealCard(deal: Deal) {
     }
 }
 
-@Composable
-private fun ErrorContent(message: String, onRetry: () -> Unit) {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("⚠", fontSize = 32.sp)
-            Text("No se pudo cargar el detalle", fontWeight = FontWeight.SemiBold)
-            Text(message, fontSize = 12.sp, color = OnSurfaceDim)
-            Spacer(Modifier.height(4.dp))
-            Button(onClick = onRetry, colors = ButtonDefaults.buttonColors(containerColor = Indigo)) {
-                Text("Reintentar")
-            }
-        }
-    }
-}
 
 private fun formatPlayers(count: Int): String = when {
     count >= 1_000_000 -> "${count / 1_000_000}M"
