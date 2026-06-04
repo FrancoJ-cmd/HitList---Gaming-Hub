@@ -352,21 +352,6 @@ private fun SkeletonCard(rank: Int) {
     }
 }
 
-@Composable
-private fun ErrorScreen(message: String, onRetry: () -> Unit) {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("⚠", fontSize = 32.sp)
-            Text("Error al cargar el ranking", fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-            Text(message, fontSize = 12.sp, color = OnSurfaceDim)
-            Spacer(Modifier.height(4.dp))
-            Button(
-                onClick = onRetry,
-                colors = ButtonDefaults.buttonColors(containerColor = Indigo)
-            ) { Text("Reintentar") }
-        }
-    }
-}
 
 private fun formatPlayers(count: Int): String = when {
     count >= 1_000_000 -> "${count / 1_000_000}M jugando"

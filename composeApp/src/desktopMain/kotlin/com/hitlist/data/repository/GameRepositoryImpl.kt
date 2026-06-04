@@ -12,7 +12,7 @@ import com.hitlist.domain.entity.GameDetail
 import com.hitlist.domain.entity.RankedGame
 import com.hitlist.domain.repository.GameRepository
 import com.hitlist.domain.result.AppResult
-import com.hitlist.domain.usecase.GetRankedGamesUseCaseImpl
+import com.hitlist.domain.util.RankingCalculator
 
 class GameRepositoryImpl(
     private val localDataSource: LocalDataSource,
@@ -34,7 +34,7 @@ class GameRepositoryImpl(
         return when (freshResult) {
             is AppResult.Success -> {
                 val previous = cached?.first ?: emptyList()
-                val withTrending = GetRankedGamesUseCaseImpl.markTrending(freshResult.data, previous)
+                val withTrending = RankingCalculator.markTrending(freshResult.data, previous)
                 localDataSource.saveRankedGames(withTrending)
                 AppResult.Success(withTrending to false)
             }
@@ -51,8 +51,8 @@ class GameRepositoryImpl(
         return seeds.mapNotNull { seed ->
             val totalReviews = seed.positiveReviews + seed.negativeReviews
             val positiveRatio = if (totalReviews > 0) seed.positiveReviews.toDouble() / totalReviews else 0.0
-            val score = GetRankedGamesUseCaseImpl.calculateScore(seed.currentPlayers, maxPlayers, positiveRatio, totalReviews)
-            if (score == 0.0 && totalReviews < GetRankedGamesUseCaseImpl.MIN_REVIEWS_THRESHOLD) return@mapNotNull null
+            val score = RankingCalculator.calculateScore(seed.currentPlayers, maxPlayers, positiveRatio, totalReviews)
+            if (score == 0.0 && totalReviews < RankingCalculator.MIN_REVIEWS_THRESHOLD) return@mapNotNull null
             RankedGame(
                 steamAppId = seed.appId,
                 name = seed.name,
@@ -60,7 +60,7 @@ class GameRepositoryImpl(
                 score = score,
                 currentPlayers = seed.currentPlayers,
                 positiveRatio = positiveRatio,
-                reviewScoreDesc = GetRankedGamesUseCaseImpl.describeReviewScore(seed.positiveReviews, seed.negativeReviews),
+                reviewScoreDesc = RankingCalculator.describeReviewScore(seed.positiveReviews, seed.negativeReviews),
                 totalReviews = totalReviews,
                 genres = seed.genres,
                 isTrending = false

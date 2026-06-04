@@ -2,7 +2,6 @@ package com.hitlist.presentation.news
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.hitlist.domain.error.AppError
 import com.hitlist.domain.result.AppResult
 import com.hitlist.domain.usecase.GetGameNewsUseCase
 import com.hitlist.presentation.common.UiState
