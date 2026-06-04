@@ -2,12 +2,13 @@ package com.hitlist.domain.usecase
 
 import com.hitlist.domain.entity.RankedGame
 import com.hitlist.domain.repository.GameRepository
+import com.hitlist.domain.result.AppResult
 
 class GetRankedGamesUseCaseImpl(
     private val gameRepository: GameRepository
 ) : GetRankedGamesUseCase {
 
-    override suspend fun execute(): Result<Pair<List<RankedGame>, Boolean>> =
+    override suspend fun execute(): AppResult<Pair<List<RankedGame>, Boolean>> =
         gameRepository.getRankedGames()
 
     companion object {
@@ -35,6 +36,20 @@ class GetRankedGamesUseCaseImpl(
             return current.mapIndexed { currentIdx, game ->
                 val prevIdx = prevPositions[game.steamAppId]
                 game.copy(isTrending = prevIdx != null && currentIdx < prevIdx)
+            }
+        }
+
+        fun describeReviewScore(positive: Int, negative: Int): String {
+            val total = positive + negative
+            if (total < 10) return ""
+            val ratio = positive.toDouble() / total
+            return when {
+                ratio >= 0.95 && total >= 500 -> "Overwhelmingly Positive"
+                ratio >= 0.80 -> "Very Positive"
+                ratio >= 0.70 -> "Mostly Positive"
+                ratio >= 0.40 -> "Mixed"
+                ratio >= 0.20 -> "Mostly Negative"
+                else -> "Overwhelmingly Negative"
             }
         }
     }

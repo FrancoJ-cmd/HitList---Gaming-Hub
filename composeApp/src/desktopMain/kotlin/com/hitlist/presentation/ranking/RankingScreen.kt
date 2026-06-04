@@ -85,7 +85,7 @@ fun RankingScreen(
                 is UiState.Loading -> LoadingList()
                 is UiState.Success -> GameList(games = gamesState.data, onGameClick = onGameClick)
                 is UiState.Error -> ErrorScreen(
-                    message = gamesState.message,
+                    message = gamesState.error.toUserMessage(),
                     onRetry = { viewModel.loadRanking() }
                 )
             }
