@@ -1,7 +1,9 @@
 package com.hitlist.presentation.news
 
 import com.hitlist.domain.entity.NewsArticle
+import com.hitlist.domain.error.AppError
 import com.hitlist.domain.fakes.GetGameNewsUseCaseFake
+import com.hitlist.domain.result.AppResult
 import com.hitlist.presentation.common.UiState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -27,7 +29,7 @@ class NewsViewModelTest {
     @Test
     fun `given query with results, state is Success with articles`() = runTest {
         val articles = listOf(givenArticle())
-        val useCase = GetGameNewsUseCaseFake(Result.success(articles))
+        val useCase = GetGameNewsUseCaseFake(AppResult.Success(articles))
         val vm = NewsViewModel(useCase)
         vm.loadNews("Dota 2")
         testDispatcher.scheduler.advanceUntilIdle()
@@ -39,7 +41,7 @@ class NewsViewModelTest {
 
     @Test
     fun `given empty query, state is Success with gaming articles`() = runTest {
-        val useCase = GetGameNewsUseCaseFake(Result.success(emptyList()))
+        val useCase = GetGameNewsUseCaseFake(AppResult.Success(emptyList()))
         val vm = NewsViewModel(useCase)
         vm.loadNews("")
         testDispatcher.scheduler.advanceUntilIdle()
@@ -49,7 +51,7 @@ class NewsViewModelTest {
 
     @Test
     fun `given API error, state is Error`() = runTest {
-        val useCase = GetGameNewsUseCaseFake(Result.failure(Exception("API error")))
+        val useCase = GetGameNewsUseCaseFake(AppResult.Failure(AppError.Network.Timeout))
         val vm = NewsViewModel(useCase)
         vm.loadNews("gaming")
         testDispatcher.scheduler.advanceUntilIdle()
@@ -59,7 +61,7 @@ class NewsViewModelTest {
 
     @Test
     fun `given missing API key, isApiKeyMissing is true and state is Success with empty list`() = runTest {
-        val useCase = GetGameNewsUseCaseFake(Result.success(emptyList()))
+        val useCase = GetGameNewsUseCaseFake(AppResult.Success(emptyList()))
         val vm = NewsViewModel(useCase)
         vm.setApiKeyMissing()
 

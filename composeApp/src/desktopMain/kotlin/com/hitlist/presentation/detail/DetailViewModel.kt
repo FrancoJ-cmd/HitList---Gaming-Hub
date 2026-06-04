@@ -2,6 +2,7 @@ package com.hitlist.presentation.detail
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.hitlist.domain.result.AppResult
 import com.hitlist.domain.usecase.GetGameDetailUseCase
 import com.hitlist.presentation.common.UiState
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,15 +21,10 @@ class DetailViewModel(
     fun loadDetail(appId: Int, name: String) {
         _uiState.update { it.copy(detailState = UiState.Loading) }
         viewModelScope.launch {
-            getGameDetailUseCase.execute(appId, name)
-                .onSuccess { detail ->
-                    _uiState.update { it.copy(detailState = UiState.Success(detail)) }
-                }
-                .onFailure { error ->
-                    _uiState.update {
-                        it.copy(detailState = UiState.Error(error.message ?: "Unknown error"))
-                    }
-                }
+            when (val result = getGameDetailUseCase.execute(appId, name)) {
+                is AppResult.Success -> _uiState.update { it.copy(detailState = UiState.Success(result.data)) }
+                is AppResult.Failure -> _uiState.update { it.copy(detailState = UiState.Error(result.error)) }
+            }
         }
     }
 }

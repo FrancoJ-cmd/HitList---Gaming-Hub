@@ -2,6 +2,7 @@ package com.hitlist.presentation.ranking
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.hitlist.domain.result.AppResult
 import com.hitlist.domain.usecase.GetRankedGamesUseCase
 import com.hitlist.presentation.common.UiState
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,8 +27,9 @@ class RankingViewModel(
     fun loadRanking() {
         _uiState.update { it.copy(gamesState = UiState.Loading) }
         viewModelScope.launch {
-            getRankedGamesUseCase.execute()
-                .onSuccess { (games, isStale) ->
+            when (val result = getRankedGamesUseCase.execute()) {
+                is AppResult.Success -> {
+                    val (games, isStale) = result.data
                     allGames = games
                     val genres = games.flatMap { it.genres }.distinct().sorted()
                     _uiState.update {
@@ -38,19 +40,16 @@ class RankingViewModel(
                         )
                     }
                 }
-                .onFailure { error ->
-                    _uiState.update {
-                        it.copy(gamesState = UiState.Error(error.message ?: "Unknown error"))
-                    }
+                is AppResult.Failure -> {
+                    _uiState.update { it.copy(gamesState = UiState.Error(result.error)) }
                 }
+            }
         }
     }
 
     fun selectGenre(genre: String?) {
-        val filtered = if (genre == null) allGames
-                       else allGames.filter { it.genres.contains(genre) }
-        val currentState = _uiState.value.gamesState
-        val isStale = (currentState as? UiState.Success)?.isStale ?: false
+        val filtered = if (genre == null) allGames else allGames.filter { it.genres.contains(genre) }
+        val isStale = (_uiState.value.gamesState as? UiState.Success)?.isStale ?: false
         _uiState.update {
             it.copy(
                 gamesState = UiState.Success(filtered, isStale),
