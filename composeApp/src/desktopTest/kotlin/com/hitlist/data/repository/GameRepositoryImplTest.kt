@@ -9,12 +9,14 @@ import com.hitlist.data.remote.GameReviewSource
 import com.hitlist.data.remote.GameSeed
 import com.hitlist.data.remote.PlayerCountSource
 import com.hitlist.domain.entity.RankedGame
+import com.hitlist.domain.result.AppResult
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 class GameRepositoryImplTest {
@@ -42,9 +44,9 @@ class GameRepositoryImplTest {
 
         val result = runBlocking { repo.getRankedGames() }
 
-        assertTrue(result.isSuccess)
-        assertEquals(cached, result.getOrThrow().first)
-        assertFalse(result.getOrThrow().second)
+        assertIs<AppResult.Success<Pair<List<RankedGame>, Boolean>>>(result)
+        assertEquals(cached, result.data.first)
+        assertFalse(result.data.second)
         coVerify(exactly = 0) { rankingSource.getTopGames() }
     }
 
@@ -60,9 +62,9 @@ class GameRepositoryImplTest {
 
         val result = runBlocking { repo.getRankedGames() }
 
-        assertTrue(result.isSuccess)
-        assertTrue(result.getOrThrow().second)
-        assertEquals(staleGames, result.getOrThrow().first)
+        assertIs<AppResult.Success<Pair<List<RankedGame>, Boolean>>>(result)
+        assertTrue(result.data.second)
+        assertEquals(staleGames, result.data.first)
     }
 
     @Test
@@ -73,7 +75,7 @@ class GameRepositoryImplTest {
 
         val result = runBlocking { repo.getRankedGames() }
 
-        assertTrue(result.isFailure)
+        assertIs<AppResult.Failure>(result)
     }
 
     @Test
@@ -82,15 +84,15 @@ class GameRepositoryImplTest {
         val expiredAt = System.currentTimeMillis() - CachePolicy.LIVE_PLAYERS_TTL_MS - 1000
         local.seedRankedGames(listOf(givenGame()), expiredAt)
 
-        coEvery { rankingSource.getTopGames() } returns listOf(GameSeed(570, "Dota 2"))
-        coEvery { playerCountSource.getCurrentPlayers(570) } returns 400000
-        coEvery { reviewSource.getGameReviews(570) } returns null
+        coEvery { rankingSource.getTopGames() } returns listOf(
+            GameSeed(570, "Dota 2", currentPlayers = 400000, positiveReviews = 1800000, negativeReviews = 200000, genres = listOf("Action"))
+        )
 
         val repo = givenRepo(local)
         val result = runBlocking { repo.getRankedGames() }
 
-        assertTrue(result.isSuccess)
-        assertFalse(result.getOrThrow().second)
+        assertIs<AppResult.Success<Pair<List<RankedGame>, Boolean>>>(result)
+        assertFalse(result.data.second)
     }
 }
 

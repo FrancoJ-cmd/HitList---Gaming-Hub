@@ -2,6 +2,8 @@ package com.hitlist.presentation.news
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.hitlist.domain.error.AppError
+import com.hitlist.domain.result.AppResult
 import com.hitlist.domain.usecase.GetGameNewsUseCase
 import com.hitlist.presentation.common.UiState
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,15 +22,10 @@ class NewsViewModel(
     fun loadNews(query: String = "", appId: Int? = null) {
         _uiState.update { it.copy(articlesState = UiState.Loading) }
         viewModelScope.launch {
-            getGameNewsUseCase.execute(query, appId)
-                .onSuccess { articles ->
-                    _uiState.update { it.copy(articlesState = UiState.Success(articles)) }
-                }
-                .onFailure { error ->
-                    _uiState.update {
-                        it.copy(articlesState = UiState.Error(error.message ?: "Unknown error"))
-                    }
-                }
+            when (val result = getGameNewsUseCase.execute(query, appId)) {
+                is AppResult.Success -> _uiState.update { it.copy(articlesState = UiState.Success(result.data)) }
+                is AppResult.Failure -> _uiState.update { it.copy(articlesState = UiState.Error(result.error)) }
+            }
         }
     }
 

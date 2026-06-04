@@ -62,7 +62,7 @@ fun DetailScreen(
                 )
                 is UiState.Success -> DetailContent(detail = detailState.data, onNewsClick = onNewsClick)
                 is UiState.Error -> ErrorContent(
-                    message = detailState.message,
+                    message = detailState.error.toUserMessage(),
                     onRetry = { viewModel.loadDetail(appId, name) }
                 )
             }

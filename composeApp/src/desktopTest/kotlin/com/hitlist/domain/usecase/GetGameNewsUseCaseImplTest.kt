@@ -2,9 +2,10 @@ package com.hitlist.domain.usecase
 
 import com.hitlist.data.fakes.NewsRepositoryFake
 import com.hitlist.domain.entity.NewsArticle
+import com.hitlist.domain.result.AppResult
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import kotlin.test.assertIs
 
 class GetGameNewsUseCaseImplTest {
 
@@ -14,17 +15,17 @@ class GetGameNewsUseCaseImplTest {
     @Test
     fun `given non-blank query, articles are returned for that query`() {
         val articles = listOf(givenArticle("Dota 2 news"))
-        val repo = NewsRepositoryFake(result = Result.success(articles))
+        val repo = NewsRepositoryFake(result = AppResult.Success(articles))
         val useCase = GetGameNewsUseCaseImpl(repo)
         val result = runBlocking { useCase.execute("Dota 2") }
         assertEquals("Dota 2", repo.lastQuery)
-        assertTrue(result.isSuccess)
-        assertEquals(articles, result.getOrThrow())
+        assertIs<AppResult.Success<List<NewsArticle>>>(result)
+        assertEquals(articles, result.data)
     }
 
     @Test
     fun `given blank query, uses gaming as fallback`() {
-        val repo = NewsRepositoryFake(result = Result.success(emptyList()))
+        val repo = NewsRepositoryFake(result = AppResult.Success(emptyList()))
         val useCase = GetGameNewsUseCaseImpl(repo)
         runBlocking { useCase.execute("   ") }
         assertEquals(GetGameNewsUseCaseImpl.DEFAULT_QUERY, repo.lastQuery)
@@ -32,7 +33,7 @@ class GetGameNewsUseCaseImplTest {
 
     @Test
     fun `given empty query, uses gaming as fallback`() {
-        val repo = NewsRepositoryFake(result = Result.success(emptyList()))
+        val repo = NewsRepositoryFake(result = AppResult.Success(emptyList()))
         val useCase = GetGameNewsUseCaseImpl(repo)
         runBlocking { useCase.execute("") }
         assertEquals(GetGameNewsUseCaseImpl.DEFAULT_QUERY, repo.lastQuery)
@@ -40,28 +41,28 @@ class GetGameNewsUseCaseImplTest {
 
     @Test
     fun `given empty article list, returns empty without error`() {
-        val repo = NewsRepositoryFake(result = Result.success(emptyList()))
+        val repo = NewsRepositoryFake(result = AppResult.Success(emptyList()))
         val useCase = GetGameNewsUseCaseImpl(repo)
         val result = runBlocking { useCase.execute("gaming") }
-        assertTrue(result.isSuccess)
-        assertTrue(result.getOrThrow().isEmpty())
+        assertIs<AppResult.Success<List<NewsArticle>>>(result)
+        assertEquals(true, result.data.isEmpty())
     }
 
     @Test
     fun `given appId, routes to getNewsForGame instead of getNews`() {
         val articles = listOf(givenArticle("CS2 Update"))
-        val repo = NewsRepositoryFake(gameNewsResult = Result.success(articles))
+        val repo = NewsRepositoryFake(gameNewsResult = AppResult.Success(articles))
         val useCase = GetGameNewsUseCaseImpl(repo)
         val result = runBlocking { useCase.execute("Counter-Strike 2", appId = 730) }
         assertEquals(730, repo.lastAppId)
         assertEquals(null, repo.lastQuery)
-        assertTrue(result.isSuccess)
-        assertEquals(articles, result.getOrThrow())
+        assertIs<AppResult.Success<List<NewsArticle>>>(result)
+        assertEquals(articles, result.data)
     }
 
     @Test
     fun `given null appId, routes to getNews`() {
-        val repo = NewsRepositoryFake(result = Result.success(emptyList()))
+        val repo = NewsRepositoryFake(result = AppResult.Success(emptyList()))
         val useCase = GetGameNewsUseCaseImpl(repo)
         runBlocking { useCase.execute("gaming", appId = null) }
         assertEquals(GetGameNewsUseCaseImpl.DEFAULT_QUERY, repo.lastQuery)

@@ -1,7 +1,9 @@
 package com.hitlist.presentation.ranking
 
 import com.hitlist.domain.entity.RankedGame
+import com.hitlist.domain.error.AppError
 import com.hitlist.domain.fakes.GetRankedGamesUseCaseFake
+import com.hitlist.domain.result.AppResult
 import com.hitlist.presentation.common.UiState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -33,7 +35,7 @@ class RankingViewModelTest {
     @Test
     fun `given successful load, state transitions to Success with game list`() = runTest {
         val games = listOf(givenGame(1), givenGame(2))
-        val useCase = GetRankedGamesUseCaseFake(Result.success(games to false))
+        val useCase = GetRankedGamesUseCaseFake(AppResult.Success(games to false))
         val vm = RankingViewModel(useCase)
         testDispatcher.scheduler.advanceUntilIdle()
 
@@ -44,7 +46,7 @@ class RankingViewModelTest {
 
     @Test
     fun `given network failure, state transitions to Error`() = runTest {
-        val useCase = GetRankedGamesUseCaseFake(Result.failure(Exception("Network error")))
+        val useCase = GetRankedGamesUseCaseFake(AppResult.Failure(AppError.Network.NoConnection))
         val vm = RankingViewModel(useCase)
         testDispatcher.scheduler.advanceUntilIdle()
 
@@ -54,7 +56,7 @@ class RankingViewModelTest {
     @Test
     fun `given offline data, state is Success with isStale true`() = runTest {
         val games = listOf(givenGame(1))
-        val useCase = GetRankedGamesUseCaseFake(Result.success(games to true))
+        val useCase = GetRankedGamesUseCaseFake(AppResult.Success(games to true))
         val vm = RankingViewModel(useCase)
         testDispatcher.scheduler.advanceUntilIdle()
 
@@ -66,7 +68,7 @@ class RankingViewModelTest {
     @Test
     fun `given genre filter applied, only matching games are shown`() = runTest {
         val games = listOf(givenGame(1, "Action"), givenGame(2, "RPG"))
-        val useCase = GetRankedGamesUseCaseFake(Result.success(games to false))
+        val useCase = GetRankedGamesUseCaseFake(AppResult.Success(games to false))
         val vm = RankingViewModel(useCase)
         testDispatcher.scheduler.advanceUntilIdle()
 
@@ -79,7 +81,7 @@ class RankingViewModelTest {
     @Test
     fun `given Todos genre selected, full list is restored`() = runTest {
         val games = listOf(givenGame(1, "Action"), givenGame(2, "RPG"))
-        val useCase = GetRankedGamesUseCaseFake(Result.success(games to false))
+        val useCase = GetRankedGamesUseCaseFake(AppResult.Success(games to false))
         val vm = RankingViewModel(useCase)
         testDispatcher.scheduler.advanceUntilIdle()
 
