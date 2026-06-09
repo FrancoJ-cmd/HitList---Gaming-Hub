@@ -3,21 +3,16 @@ package com.hitlist.data.repository
 import com.hitlist.data.local.CachePolicy
 import com.hitlist.data.local.LocalDataSource
 import com.hitlist.data.mapper.toAppResult
+import com.hitlist.data.remote.CombinedRankingSource
 import com.hitlist.data.remote.GameDealsSource
-import com.hitlist.data.remote.GameMetadataSeed
 import com.hitlist.data.remote.GameMetadataSource
 import com.hitlist.data.remote.GameReviewSource
-import com.hitlist.data.remote.LiveRankingSource
 import com.hitlist.data.remote.PlayerCountSource
-import com.hitlist.data.remote.RankingMetadataSource
 import com.hitlist.domain.entity.GameDetail
 import com.hitlist.domain.entity.RankedGame
 import com.hitlist.domain.repository.GameRepository
 import com.hitlist.domain.result.AppResult
 import com.hitlist.domain.util.RankingCalculator
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -26,8 +21,7 @@ import kotlin.coroutines.coroutineContext
 
 class GameRepositoryImpl(
     private val localDataSource: LocalDataSource,
-    private val liveRankingSource: LiveRankingSource,
-    private val rankingMetadataSource: RankingMetadataSource,
+    private val rankingSource: CombinedRankingSource,
     private val playerCountSource: PlayerCountSource,
     private val metadataSource: GameMetadataSource,
     private val reviewSource: GameReviewSource,
@@ -74,49 +68,27 @@ class GameRepositoryImpl(
     private data class FreshRanking(val games: List<RankedGame>, val lastUpdate: Long)
 
     private suspend fun fetchFreshRanking(): FreshRanking {
-        val live = liveRankingSource.getLiveRanking()
-        val metadata = loadRankingMetadata(live.entries.map { it.appId })
-        val maxPlayers = live.entries.maxOfOrNull { it.concurrentPlayers } ?: 0
-        val games = live.entries.mapNotNull { entry ->
-            val seed = metadata[entry.appId] ?: return@mapNotNull null
-            val totalReviews = seed.positiveReviews + seed.negativeReviews
-            val positiveRatio = if (totalReviews > 0) seed.positiveReviews.toDouble() / totalReviews else 0.0
+        val combined = rankingSource.getCombinedRanking()
+        val maxPlayers = combined.entries.maxOfOrNull { it.concurrentPlayers } ?: 0
+        val games = combined.entries.mapNotNull { entry ->
+            val totalReviews = entry.positiveReviews + entry.negativeReviews
+            val positiveRatio = if (totalReviews > 0) entry.positiveReviews.toDouble() / totalReviews else 0.0
             val score = RankingCalculator.calculateScore(entry.concurrentPlayers, maxPlayers, positiveRatio, totalReviews)
             if (score == 0.0 && totalReviews < RankingCalculator.MIN_REVIEWS_THRESHOLD) return@mapNotNull null
             RankedGame(
                 steamAppId = entry.appId,
-                name = seed.name,
+                name = entry.name,
                 headerImageUrl = "https://cdn.akamai.steamstatic.com/steam/apps/${entry.appId}/header.jpg",
                 score = score,
                 currentPlayers = entry.concurrentPlayers,
                 positiveRatio = positiveRatio,
-                reviewScoreDesc = RankingCalculator.describeReviewScore(seed.positiveReviews, seed.negativeReviews),
+                reviewScoreDesc = RankingCalculator.describeReviewScore(entry.positiveReviews, entry.negativeReviews),
                 totalReviews = totalReviews,
-                genres = seed.genres,
+                genres = entry.genres,
                 isTrending = false
             )
         }.sortedByDescending { it.score }
-        return FreshRanking(games, live.lastUpdate)
-    }
-
-    private suspend fun loadRankingMetadata(appIds: List<Int>): Map<Int, GameMetadataSeed> {
-        val cached = localDataSource.getRankingMetadata()
-        val valid = cached != null && CachePolicy.isValid(cached.second, CachePolicy.SEED_LIST_TTL_MS)
-        val base = if (valid) cached!!.first else rankingMetadataSource.getBulkMetadata()
-        val cachedAt = if (valid) cached!!.second else System.currentTimeMillis()
-
-        val missing = appIds.filterNot { base.containsKey(it) }
-        val merged = if (missing.isEmpty()) base else base + fetchMissingMetadata(missing)
-        localDataSource.saveRankingMetadata(merged, cachedAt)
-        return merged
-    }
-
-    private suspend fun fetchMissingMetadata(appIds: List<Int>): Map<Int, GameMetadataSeed> = coroutineScope {
-        appIds
-            .map { id -> async { rankingMetadataSource.getMetadata(id) } }
-            .awaitAll()
-            .filterNotNull()
-            .associateBy { it.appId }
+        return FreshRanking(games, combined.lastUpdate)
     }
 
     private fun nextDelayFromSteam(lastUpdateSeconds: Long): Long {

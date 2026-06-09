@@ -13,6 +13,7 @@ import com.hitlist.data.remote.steamweb.SteamWebProxy
 import com.hitlist.data.repository.DealsRepositoryImpl
 import com.hitlist.data.repository.GameRepositoryImpl
 import com.hitlist.data.repository.NewsRepositoryImpl
+import com.hitlist.data.repository.RankingSourceBroker
 import com.hitlist.domain.usecase.GetGameDetailUseCaseImpl
 import com.hitlist.domain.usecase.GetGameNewsUseCaseImpl
 import com.hitlist.domain.usecase.GetRankedGamesUseCaseImpl
@@ -41,10 +42,15 @@ object HitListDependencyInjector {
     private val steamNewsProxy = SteamNewsProxy.create()
     private val newsApiProxy by lazy { NewsApiProxy.create(newsApiKey) }
 
-    private val gameRepository = GameRepositoryImpl(
+    private val rankingSourceBroker = RankingSourceBroker(
         localDataSource,
         liveRankingSource = steamChartsProxy,
-        rankingMetadataSource = steamSpyProxy,
+        rankingMetadataSource = steamSpyProxy
+    )
+
+    private val gameRepository = GameRepositoryImpl(
+        localDataSource,
+        rankingSource = rankingSourceBroker,
         playerCountSource = steamWebProxy,
         metadataSource = steamStoreProxy,
         reviewSource = steamStoreProxy,
