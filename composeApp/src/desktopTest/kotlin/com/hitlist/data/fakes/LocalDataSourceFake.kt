@@ -1,6 +1,7 @@
 package com.hitlist.data.fakes
 
 import com.hitlist.data.local.LocalDataSource
+import com.hitlist.data.remote.GameMetadataSeed
 import com.hitlist.domain.entity.Deal
 import com.hitlist.domain.entity.GameDetail
 import com.hitlist.domain.entity.NewsArticle
@@ -8,6 +9,7 @@ import com.hitlist.domain.entity.RankedGame
 
 class LocalDataSourceFake : LocalDataSource {
     private var rankedGames: Pair<List<RankedGame>, Long>? = null
+    private var rankingMetadata: Pair<Map<Int, GameMetadataSeed>, Long>? = null
     private val gameDetails = mutableMapOf<Int, Pair<GameDetail, Long>>()
     private val deals = mutableMapOf<String, Pair<List<Deal>, Long>>()
     private val news = mutableMapOf<String, Pair<List<NewsArticle>, Long>>()
@@ -15,6 +17,11 @@ class LocalDataSourceFake : LocalDataSource {
     override fun getRankedGames() = rankedGames
     override fun saveRankedGames(games: List<RankedGame>) {
         rankedGames = games to System.currentTimeMillis()
+    }
+
+    override fun getRankingMetadata() = rankingMetadata
+    override fun saveRankingMetadata(metadata: Map<Int, GameMetadataSeed>, cachedAt: Long) {
+        rankingMetadata = metadata to cachedAt
     }
 
     override fun getGameDetail(appId: Int) = gameDetails[appId]
@@ -34,6 +41,10 @@ class LocalDataSourceFake : LocalDataSource {
 
     fun seedRankedGames(games: List<RankedGame>, cachedAt: Long = System.currentTimeMillis()) {
         rankedGames = games to cachedAt
+    }
+
+    fun seedRankingMetadata(metadata: Map<Int, GameMetadataSeed>, cachedAt: Long = System.currentTimeMillis()) {
+        rankingMetadata = metadata to cachedAt
     }
 
     fun seedGameDetail(detail: GameDetail, cachedAt: Long = System.currentTimeMillis()) {

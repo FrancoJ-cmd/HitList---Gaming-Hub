@@ -5,6 +5,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.hitlist.data.local.LocalDataSourceImpl
 import com.hitlist.data.remote.cheapshark.CheapSharkProxy
 import com.hitlist.data.remote.newsapi.NewsApiProxy
+import com.hitlist.data.remote.steamcharts.SteamChartsProxy
 import com.hitlist.data.remote.steamnews.SteamNewsProxy
 import com.hitlist.data.remote.steamspy.SteamSpyProxy
 import com.hitlist.data.remote.steamstore.SteamStoreProxy
@@ -32,6 +33,7 @@ object HitListDependencyInjector {
 
     private val localDataSource = LocalDataSourceImpl()
 
+    private val steamChartsProxy = SteamChartsProxy.create()
     private val steamSpyProxy = SteamSpyProxy.create()
     private val steamWebProxy = SteamWebProxy.create()
     private val steamStoreProxy = SteamStoreProxy.create()
@@ -41,7 +43,8 @@ object HitListDependencyInjector {
 
     private val gameRepository = GameRepositoryImpl(
         localDataSource,
-        rankingSource = steamSpyProxy,
+        liveRankingSource = steamChartsProxy,
+        rankingMetadataSource = steamSpyProxy,
         playerCountSource = steamWebProxy,
         metadataSource = steamStoreProxy,
         reviewSource = steamStoreProxy,

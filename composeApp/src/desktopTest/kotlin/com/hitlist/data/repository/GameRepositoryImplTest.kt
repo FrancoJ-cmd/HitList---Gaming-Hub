@@ -3,16 +3,20 @@ package com.hitlist.data.repository
 import com.hitlist.data.fakes.LocalDataSourceFake
 import com.hitlist.data.local.CachePolicy
 import com.hitlist.data.remote.GameDealsSource
+import com.hitlist.data.remote.GameMetadataSeed
 import com.hitlist.data.remote.GameMetadataSource
-import com.hitlist.data.remote.GameRankingSource
 import com.hitlist.data.remote.GameReviewSource
-import com.hitlist.data.remote.GameSeed
+import com.hitlist.data.remote.LiveRankEntry
+import com.hitlist.data.remote.LiveRanking
+import com.hitlist.data.remote.LiveRankingSource
 import com.hitlist.data.remote.PlayerCountSource
+import com.hitlist.data.remote.RankingMetadataSource
 import com.hitlist.domain.entity.RankedGame
 import com.hitlist.domain.result.AppResult
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import kotlinx.coroutines.flow.first
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -21,7 +25,8 @@ import kotlin.test.assertTrue
 
 class GameRepositoryImplTest {
 
-    private val rankingSource = mockk<GameRankingSource>()
+    private val liveRankingSource = mockk<LiveRankingSource>()
+    private val rankingMetadataSource = mockk<RankingMetadataSource>()
     private val playerCountSource = mockk<PlayerCountSource>()
     private val metadataSource = mockk<GameMetadataSource>()
     private val reviewSource = mockk<GameReviewSource>()
@@ -32,7 +37,7 @@ class GameRepositoryImplTest {
     )
 
     private fun givenRepo(local: LocalDataSourceFake) = GameRepositoryImpl(
-        local, rankingSource, playerCountSource, metadataSource, reviewSource, dealsSource
+        local, liveRankingSource, rankingMetadataSource, playerCountSource, metadataSource, reviewSource, dealsSource
     )
 
     @Test
@@ -42,12 +47,12 @@ class GameRepositoryImplTest {
         local.seedRankedGames(cached, System.currentTimeMillis())
         val repo = givenRepo(local)
 
-        val result = runBlocking { repo.getRankedGames() }
+        val result = runBlocking { repo.observeRankedGames().first() }
 
         assertIs<AppResult.Success<Pair<List<RankedGame>, Boolean>>>(result)
         assertEquals(cached, result.data.first)
         assertFalse(result.data.second)
-        coVerify(exactly = 0) { rankingSource.getTopGames() }
+        coVerify(exactly = 0) { liveRankingSource.getLiveRanking() }
     }
 
     @Test
@@ -57,10 +62,10 @@ class GameRepositoryImplTest {
         val expiredAt = System.currentTimeMillis() - CachePolicy.LIVE_PLAYERS_TTL_MS - 1000
         local.seedRankedGames(staleGames, expiredAt)
 
-        coEvery { rankingSource.getTopGames() } throws Exception("No network")
+        coEvery { liveRankingSource.getLiveRanking() } throws Exception("No network")
         val repo = givenRepo(local)
 
-        val result = runBlocking { repo.getRankedGames() }
+        val result = runBlocking { repo.observeRankedGames().first() }
 
         assertIs<AppResult.Success<Pair<List<RankedGame>, Boolean>>>(result)
         assertTrue(result.data.second)
@@ -70,10 +75,10 @@ class GameRepositoryImplTest {
     @Test
     fun `given no cache and no network, returns failure`() {
         val local = LocalDataSourceFake()
-        coEvery { rankingSource.getTopGames() } throws Exception("No network")
+        coEvery { liveRankingSource.getLiveRanking() } throws Exception("No network")
         val repo = givenRepo(local)
 
-        val result = runBlocking { repo.getRankedGames() }
+        val result = runBlocking { repo.observeRankedGames().first() }
 
         assertIs<AppResult.Failure>(result)
     }
@@ -84,15 +89,39 @@ class GameRepositoryImplTest {
         val expiredAt = System.currentTimeMillis() - CachePolicy.LIVE_PLAYERS_TTL_MS - 1000
         local.seedRankedGames(listOf(givenGame()), expiredAt)
 
-        coEvery { rankingSource.getTopGames() } returns listOf(
-            GameSeed(570, "Dota 2", currentPlayers = 400000, positiveReviews = 1800000, negativeReviews = 200000, genres = listOf("Action"))
+        coEvery { liveRankingSource.getLiveRanking() } returns LiveRanking(
+            entries = listOf(LiveRankEntry(appId = 570, concurrentPlayers = 400000, rank = 1)),
+            lastUpdate = System.currentTimeMillis() / 1000
+        )
+        coEvery { rankingMetadataSource.getBulkMetadata() } returns mapOf(
+            570 to GameMetadataSeed(570, "Dota 2", positiveReviews = 1800000, negativeReviews = 200000, genres = listOf("Action"))
         )
 
         val repo = givenRepo(local)
-        val result = runBlocking { repo.getRankedGames() }
+        val result = runBlocking { repo.observeRankedGames().first() }
 
         assertIs<AppResult.Success<Pair<List<RankedGame>, Boolean>>>(result)
         assertFalse(result.data.second)
+        assertEquals(570, result.data.first.single().steamAppId)
+    }
+
+    @Test
+    fun `given appId missing from bulk metadata, fetches it via per-game fallback`() {
+        val local = LocalDataSourceFake()
+        coEvery { liveRankingSource.getLiveRanking() } returns LiveRanking(
+            entries = listOf(LiveRankEntry(appId = 999, concurrentPlayers = 50000, rank = 1)),
+            lastUpdate = System.currentTimeMillis() / 1000
+        )
+        coEvery { rankingMetadataSource.getBulkMetadata() } returns emptyMap()
+        coEvery { rankingMetadataSource.getMetadata(999) } returns
+            GameMetadataSeed(999, "New Hit", positiveReviews = 9000, negativeReviews = 1000, genres = listOf("RPG"))
+
+        val repo = givenRepo(local)
+        val result = runBlocking { repo.observeRankedGames().first() }
+
+        assertIs<AppResult.Success<Pair<List<RankedGame>, Boolean>>>(result)
+        assertEquals("New Hit", result.data.first.single().name)
+        coVerify(exactly = 1) { rankingMetadataSource.getMetadata(999) }
     }
 }
 

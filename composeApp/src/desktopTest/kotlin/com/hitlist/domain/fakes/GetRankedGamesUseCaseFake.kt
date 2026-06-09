@@ -3,14 +3,17 @@ package com.hitlist.domain.fakes
 import com.hitlist.domain.entity.RankedGame
 import com.hitlist.domain.result.AppResult
 import com.hitlist.domain.usecase.GetRankedGamesUseCase
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 
 class GetRankedGamesUseCaseFake(
-    private val result: AppResult<Pair<List<RankedGame>, Boolean>> = AppResult.Success(emptyList<RankedGame>() to false)
+    private vararg val emissions: AppResult<Pair<List<RankedGame>, Boolean>> =
+        arrayOf(AppResult.Success(emptyList<RankedGame>() to false))
 ) : GetRankedGamesUseCase {
-    var executeCallCount = 0
+    var observeCallCount = 0
 
-    override suspend fun execute(): AppResult<Pair<List<RankedGame>, Boolean>> {
-        executeCallCount++
-        return result
+    override fun observe(): Flow<AppResult<Pair<List<RankedGame>, Boolean>>> = flow {
+        observeCallCount++
+        emissions.forEach { emit(it) }
     }
 }

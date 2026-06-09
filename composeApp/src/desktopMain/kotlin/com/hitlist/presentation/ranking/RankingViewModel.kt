@@ -2,9 +2,11 @@ package com.hitlist.presentation.ranking
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.hitlist.domain.entity.RankedGame
 import com.hitlist.domain.result.AppResult
 import com.hitlist.domain.usecase.GetRankedGamesUseCase
 import com.hitlist.presentation.common.UiState
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,43 +20,55 @@ class RankingViewModel(
     private val _uiState = MutableStateFlow(RankingUiState())
     val uiState: StateFlow<RankingUiState> = _uiState.asStateFlow()
 
-    private var allGames = emptyList<com.hitlist.domain.entity.RankedGame>()
+    private var allGames = emptyList<RankedGame>()
+    private var observeJob: Job? = null
 
     init {
-        loadRanking()
+        observeRanking()
     }
 
-    fun loadRanking() {
-        _uiState.update { it.copy(gamesState = UiState.Loading) }
-        viewModelScope.launch {
-            when (val result = getRankedGamesUseCase.execute()) {
-                is AppResult.Success -> {
-                    val (games, isStale) = result.data
-                    allGames = games
-                    val genres = games.flatMap { it.genres }.distinct().sorted()
-                    _uiState.update {
-                        it.copy(
-                            gamesState = UiState.Success(games, isStale),
-                            availableGenres = genres,
-                            selectedGenre = null
-                        )
+    fun retry() = observeRanking()
+
+    fun selectGenre(genre: String?) {
+        _uiState.update { state ->
+            state.copy(gamesState = filteredState(genre, currentIsStale()), selectedGenre = genre)
+        }
+    }
+
+    private fun observeRanking() {
+        observeJob?.cancel()
+        _uiState.update {
+            val keepData = it.gamesState as? UiState.Success
+            it.copy(gamesState = keepData ?: UiState.Loading)
+        }
+        observeJob = viewModelScope.launch {
+            getRankedGamesUseCase.observe().collect { result ->
+                when (result) {
+                    is AppResult.Success -> onGamesLoaded(result.data.first, result.data.second)
+                    is AppResult.Failure -> _uiState.update {
+                        if (it.gamesState is UiState.Success) it
+                        else it.copy(gamesState = UiState.Error(result.error))
                     }
-                }
-                is AppResult.Failure -> {
-                    _uiState.update { it.copy(gamesState = UiState.Error(result.error)) }
                 }
             }
         }
     }
 
-    fun selectGenre(genre: String?) {
-        val filtered = if (genre == null) allGames else allGames.filter { it.genres.contains(genre) }
-        val isStale = (_uiState.value.gamesState as? UiState.Success)?.isStale ?: false
-        _uiState.update {
-            it.copy(
-                gamesState = UiState.Success(filtered, isStale),
-                selectedGenre = genre
+    private fun onGamesLoaded(games: List<RankedGame>, isStale: Boolean) {
+        allGames = games
+        _uiState.update { state ->
+            state.copy(
+                gamesState = filteredState(state.selectedGenre, isStale),
+                availableGenres = games.flatMap { it.genres }.distinct().sorted()
             )
         }
     }
+
+    private fun filteredState(genre: String?, isStale: Boolean): UiState<List<RankedGame>> {
+        val visible = if (genre == null) allGames else allGames.filter { it.genres.contains(genre) }
+        return UiState.Success(visible, isStale)
+    }
+
+    private fun currentIsStale(): Boolean =
+        (_uiState.value.gamesState as? UiState.Success)?.isStale ?: false
 }

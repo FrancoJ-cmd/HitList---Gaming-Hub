@@ -1,5 +1,6 @@
 package com.hitlist.data.local
 
+import com.hitlist.data.remote.GameMetadataSeed
 import com.hitlist.domain.entity.Deal
 import com.hitlist.domain.entity.GameDetail
 import com.hitlist.domain.entity.NewsArticle
@@ -11,6 +12,7 @@ import java.io.File
 class LocalDataSourceImpl(cacheDir: File = defaultCacheDir()) : LocalDataSource {
 
     private val rankedGamesFile = File(cacheDir, "ranked_games.json")
+    private val rankingMetadataFile = File(cacheDir, "ranking_metadata.json")
     private val json = Json { ignoreUnknownKeys = true }
 
     init {
@@ -27,6 +29,18 @@ class LocalDataSourceImpl(cacheDir: File = defaultCacheDir()) : LocalDataSource 
             data = games.map { SerializableRankedGame.fromDomain(it) }
         )
         rankedGamesFile.writeText(json.encodeToString(entry))
+    }
+
+    override fun getRankingMetadata(): Pair<Map<Int, GameMetadataSeed>, Long>? =
+        readCache<CacheEntry<Map<Int, SerializableGameMetadataSeed>>>(rankingMetadataFile)
+            ?.let { entry -> entry.data.mapValues { it.value.toModel() } to entry.cachedAt }
+
+    override fun saveRankingMetadata(metadata: Map<Int, GameMetadataSeed>, cachedAt: Long) {
+        val entry = CacheEntry(
+            cachedAt = cachedAt,
+            data = metadata.mapValues { SerializableGameMetadataSeed.fromModel(it.value) }
+        )
+        rankingMetadataFile.writeText(json.encodeToString(entry))
     }
 
     override fun getGameDetail(appId: Int): Pair<GameDetail, Long>? {
