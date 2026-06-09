@@ -1,14 +1,5 @@
 package com.hitlist.data.remote
 
-data class GameSeed(
-    val appId: Int,
-    val name: String,
-    val currentPlayers: Int,
-    val positiveReviews: Int,
-    val negativeReviews: Int,
-    val genres: List<String>
-)
-
 data class GameMetadata(
     val name: String,
     val shortDescription: String,

@@ -1,5 +1,6 @@
 package com.hitlist.data.local
 
+import com.hitlist.data.remote.GameMetadataSeed
 import com.hitlist.domain.entity.Deal
 import com.hitlist.domain.entity.GameDetail
 import com.hitlist.domain.entity.NewsArticle
@@ -47,6 +48,21 @@ class LocalDataSourceImplTest {
     @Test
     fun `given no saved data, getRankedGames returns null`() {
         assertNull(dataSource.getRankedGames())
+    }
+
+    @Test
+    fun `given saved ranking metadata, it is retrieved with its timestamp preserved`() {
+        val metadata = mapOf(
+            570 to GameMetadataSeed(570, "Dota 2", 1800000, 200000, listOf("Action")),
+            730 to GameMetadataSeed(730, "CS2", 5000000, 800000, listOf("FPS"))
+        )
+        val cachedAt = 1_700_000_000_000L
+        dataSource.saveRankingMetadata(metadata, cachedAt)
+
+        val loaded = dataSource.getRankingMetadata()
+        assertNotNull(loaded)
+        assertEquals(metadata, loaded.first)
+        assertEquals(cachedAt, loaded.second)
     }
 
     @Test

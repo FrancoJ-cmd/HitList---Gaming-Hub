@@ -3,6 +3,8 @@ package com.hitlist.domain.usecase
 import com.hitlist.data.fakes.GameRepositoryFake
 import com.hitlist.domain.entity.RankedGame
 import com.hitlist.domain.result.AppResult
+import com.hitlist.domain.util.RankingCalculator
+import kotlinx.coroutines.flow.first
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -21,7 +23,7 @@ class GetRankedGamesUseCaseImplTest {
 
     @Test
     fun `given enough reviews, score is calculated correctly`() {
-        val score = GetRankedGamesUseCaseImpl.calculateScore(
+        val score = RankingCalculator.calculateScore(
             currentPlayers = 500,
             maxPlayersInDataset = 1000,
             positiveRatio = 0.8,
@@ -33,7 +35,7 @@ class GetRankedGamesUseCaseImplTest {
 
     @Test
     fun `given less than minimum reviews, score is zero`() {
-        val score = GetRankedGamesUseCaseImpl.calculateScore(
+        val score = RankingCalculator.calculateScore(
             currentPlayers = 10000,
             maxPlayersInDataset = 10000,
             positiveRatio = 1.0,
@@ -44,7 +46,7 @@ class GetRankedGamesUseCaseImplTest {
 
     @Test
     fun `given maxPlayers is zero, trendScore is zero without division by zero`() {
-        val score = GetRankedGamesUseCaseImpl.calculateScore(
+        val score = RankingCalculator.calculateScore(
             currentPlayers = 0,
             maxPlayersInDataset = 0,
             positiveRatio = 0.9,
@@ -55,7 +57,7 @@ class GetRankedGamesUseCaseImplTest {
 
     @Test
     fun `given positiveRatio is zero, score is only trend-based`() {
-        val score = GetRankedGamesUseCaseImpl.calculateScore(
+        val score = RankingCalculator.calculateScore(
             currentPlayers = 1000,
             maxPlayersInDataset = 1000,
             positiveRatio = 0.0,
@@ -72,16 +74,16 @@ class GetRankedGamesUseCaseImplTest {
             )
         )
         val useCase = GetRankedGamesUseCaseImpl(repo)
-        val result = runBlocking { useCase.execute() }
+        val result = runBlocking { useCase.observe().first() }
         assertIs<AppResult.Success<Pair<List<RankedGame>, Boolean>>>(result)
         assertEquals(listOf(1, 2, 3), result.data.first.map { it.steamAppId })
     }
 
     @Test
-    fun `given empty list from SteamSpy, returns empty list without exception`() {
+    fun `given empty list from data source, returns empty list without exception`() {
         val repo = GameRepositoryFake(rankedGamesResult = AppResult.Success(emptyList<RankedGame>() to false))
         val useCase = GetRankedGamesUseCaseImpl(repo)
-        val result = runBlocking { useCase.execute() }
+        val result = runBlocking { useCase.observe().first() }
         assertIs<AppResult.Success<Pair<List<RankedGame>, Boolean>>>(result)
         assertTrue(result.data.first.isEmpty())
     }
@@ -90,7 +92,7 @@ class GetRankedGamesUseCaseImplTest {
     fun `markTrending — game that moved up is marked as trending`() {
         val previous = listOf(givenGame(1), givenGame(2), givenGame(3))
         val current = listOf(givenGame(2), givenGame(1), givenGame(3))
-        val result = GetRankedGamesUseCaseImpl.markTrending(current, previous)
+        val result = RankingCalculator.markTrending(current, previous)
         assertTrue(result[0].isTrending)
         assertFalse(result[1].isTrending)
         assertFalse(result[2].isTrending)
@@ -100,28 +102,28 @@ class GetRankedGamesUseCaseImplTest {
     fun `markTrending — new game not in previous list is not trending`() {
         val previous = listOf(givenGame(1))
         val current = listOf(givenGame(1), givenGame(99))
-        val result = GetRankedGamesUseCaseImpl.markTrending(current, previous)
+        val result = RankingCalculator.markTrending(current, previous)
         assertFalse(result[1].isTrending)
     }
 
     @Test
     fun `describeReviewScore — overwhelmingly positive when ratio over 95 percent and 500 plus reviews`() {
-        assertEquals("Overwhelmingly Positive", GetRankedGamesUseCaseImpl.describeReviewScore(1900, 100))
+        assertEquals("Overwhelmingly Positive", RankingCalculator.describeReviewScore(1900, 100))
     }
 
     @Test
     fun `describeReviewScore — very positive when ratio over 80 percent`() {
-        assertEquals("Very Positive", GetRankedGamesUseCaseImpl.describeReviewScore(800, 200))
+        assertEquals("Very Positive", RankingCalculator.describeReviewScore(800, 200))
     }
 
     @Test
     fun `describeReviewScore — mixed when ratio between 40 and 70 percent`() {
-        assertEquals("Mixed", GetRankedGamesUseCaseImpl.describeReviewScore(500, 500))
+        assertEquals("Mixed", RankingCalculator.describeReviewScore(500, 500))
     }
 
     @Test
     fun `describeReviewScore — empty string when fewer than 10 reviews`() {
-        assertEquals("", GetRankedGamesUseCaseImpl.describeReviewScore(8, 1))
+        assertEquals("", RankingCalculator.describeReviewScore(8, 1))
     }
 }
 

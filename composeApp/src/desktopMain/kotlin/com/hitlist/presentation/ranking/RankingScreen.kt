@@ -86,7 +86,7 @@ fun RankingScreen(
                 is UiState.Success -> GameList(games = gamesState.data, onGameClick = onGameClick)
                 is UiState.Error -> ErrorScreen(
                     message = gamesState.error.toUserMessage(),
-                    onRetry = { viewModel.loadRanking() }
+                    onRetry = { viewModel.retry() }
                 )
             }
         }
@@ -162,14 +162,15 @@ private fun GameList(games: List<RankedGame>, onGameClick: (Int, String) -> Unit
             GameCard(
                 rank = index + 1,
                 game = game,
-                onClick = { onGameClick(game.steamAppId, game.name) }
+                onClick = { onGameClick(game.steamAppId, game.name) },
+                modifier = Modifier.animateItem()
             )
         }
     }
 }
 
 @Composable
-private fun GameCard(rank: Int, game: RankedGame, onClick: () -> Unit) {
+private fun GameCard(rank: Int, game: RankedGame, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val rankColor = when (rank) {
         1 -> GoldColor
         2 -> SilverColor
@@ -184,7 +185,7 @@ private fun GameCard(rank: Int, game: RankedGame, onClick: () -> Unit) {
     }
 
     Box(
-        Modifier
+        modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(SurfaceColor)

@@ -2,7 +2,7 @@ package com.hitlist.data.local
 
 object CachePolicy {
     const val SEED_LIST_TTL_MS = 24 * 60 * 60 * 1000L
-    const val LIVE_PLAYERS_TTL_MS = 5 * 60 * 1000L
+    const val LIVE_PLAYERS_TTL_MS = 60 * 1000L
     const val REVIEWS_TTL_MS = 6 * 60 * 60 * 1000L
     const val METADATA_TTL_MS = 24 * 60 * 60 * 1000L
     const val DEALS_TTL_MS = 60 * 60 * 1000L
