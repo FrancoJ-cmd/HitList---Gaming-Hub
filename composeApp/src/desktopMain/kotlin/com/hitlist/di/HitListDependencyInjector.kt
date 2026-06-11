@@ -24,11 +24,18 @@ import java.io.File
 import java.util.Properties
 
 object HitListDependencyInjector {
-
     private val newsApiKey: String by lazy {
+        System.getenv("NEWS_API_KEY")?.takeIf { it.isNotBlank() }?.let { return@lazy it }
+
         val props = Properties()
-        val file = File("local.properties")
-        if (file.exists()) props.load(file.inputStream())
+        val candidates = listOf(
+            File("local.properties"),
+            File("../local.properties")
+        )
+
+        val found = candidates.firstOrNull { it.exists() }
+        if (found != null) props.load(found.inputStream())
+
         props.getProperty("NEWS_API_KEY", "")
     }
 
