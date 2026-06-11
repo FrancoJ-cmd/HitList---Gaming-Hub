@@ -1,4 +1,4 @@
-# HitList -- Gamer Hub
+# HitList - Gamer Hub
 
 KMP Desktop app that ranks Steam's most-played games in real time by a composite score of live concurrent players + community rating. Built with Compose Multiplatform and Clean Architecture (MVVM).
 
@@ -52,11 +52,34 @@ The ranking polls the live feed on Steam's cadence: each fetch reads the feed's 
 
 ## Architecture
 
-Clean Architecture (MVVM) with dependencies pointing inward: **presentation → domain → data**.
+Clean Architecture (MVVM) with dependencies pointing inward: **presentation → domain ← data**. The codebase is organised by feature, not by layer.
 
-- **presentation** — Compose screens + `ViewModel`s exposing a `StateFlow<UiState>`.
-- **domain** — entities, repository interfaces, use cases, and `RankingCalculator` (score, trending, review-score description). No framework or network types.
-- **data** — repository implementations, remote `*Source` proxies (Ktor), and the disk cache (`LocalDataSource`).
+```
+com.hitlist/
+├── common/
+│   ├── domain/         AppError, AppResult
+│   ├── data/           CachePolicy, cache source interfaces, LocalDataSourceImpl, ErrorMapper
+│   └── presentation/   Theme, UiState, shared composables (ErrorScreen, LoadingIndicator)
+├── ranking/
+│   ├── domain/         RankedGame, RankingRepository, GetRankedGamesUseCase
+│   ├── data/           RankingRepositoryImpl, CombinedRankingSource(Impl), LiveRankingSource,
+│   │                   RankingMetadataSource, steamcharts/, steamspy/
+│   └── presentation/   RankingViewModel, RankingScreen, RankingUiState
+├── detail/
+│   ├── domain/         GameDetail, Deal, GameDetailRepository, GetGameDetailUseCase
+│   ├── data/           GameDetailRepositoryImpl, source interfaces,
+│   │                   steamstore/, steamweb/, cheapshark/
+│   └── presentation/   DetailViewModel, DetailScreen, DetailUiState
+├── news/
+│   ├── domain/         NewsArticle, NewsRepository, GetGameNewsUseCase, GetGeneralNewsUseCase
+│   ├── data/           NewsRepositoryImpl, GameNewsSource, GeneralNewsSource,
+│   │                   steamnews/, newsapi/
+│   └── presentation/   NewsViewModel, NewsScreen, NewsUiState
+├── navigation/         AppNavGraph
+└── di/                 HitListDependencyInjector (manual service locator)
+```
+
+Each feature's layers follow the same rules: presentation depends only on its own domain and `common`, data depends only on its own domain and `common`, domain depends only on `common.domain`.
 
 ### Real-time ranking data flow
 
@@ -66,7 +89,7 @@ SteamChartsProxy (LiveRankingSource)        SteamSpyProxy (RankingMetadataSource
   → order + concurrent players + last_update  appdetails      (per-app fallback)
                     \                         /
                      v                       v
-            GameRepositoryImpl.observeRankedGames(): Flow
+            RankingRepositoryImpl.observeRankedGames(): Flow
               · join live players + metadata by appId
               · composite score, drop games < 50 reviews
               · mark 🔥 trending vs the previous emission
@@ -79,7 +102,73 @@ SteamChartsProxy (LiveRankingSource)        SteamSpyProxy (RankingMetadataSource
                        RankingScreen (LazyColumn + animateItem)
 ```
 
-The ranking is a cold `Flow` polled in a loop: the membership, order and live player counts come from a single Steam Charts call, while the slower name/genre/review metadata is fetched once from SteamSpy (with a per-app fallback for games not in the bulk list) and reused across polls. Each poll anchors the next wake-up to the feed's `last_update` instead of a blind timer, so it stays in phase with Steam and avoids redundant fetches.
+The ranking is a cold `Flow` polled in a loop: membership, order, and live player counts come from a single Steam Charts call, while the slower name/genre/review metadata is fetched once from SteamSpy (with a per-app fallback for games not in the bulk list) and reused across polls. Each poll anchors the next wake-up to the feed's `last_update` instead of a blind timer, so it stays in phase with Steam and avoids redundant fetches.
+
+## Domain Design Decisions
+
+The domain is split into three independent objects. Each one earned that status by having its own lifecycle, its own screen, its own repository contract, and its own use case. Objects that failed any of those tests were either absorbed into another domain object or deleted.
+
+---
+
+### RankedGame
+
+**What it is:** a game as it appears in the real-time ranking — its current concurrent player count, a composite score, and a trending flag.
+
+**Why it is a domain object:** the ranking has a distinct, continuous lifecycle (live polling on Steam's cadence) that is completely independent from any other screen or user action. The data it needs (player counts from Steam Charts, bulk metadata from SteamSpy) differs from what the detail screen needs, and so does its cache TTL (60 seconds vs. 24 hours). Merging it with `GameDetail` would force the detail screen to depend on live polling infrastructure it does not need.
+
+**What that implies in code:**
+- `ranking/domain/RankedGame.kt` — the entity
+- `ranking/domain/RankingRepository.kt` — contract: `observeRankedGames(): Flow<...>`
+- `ranking/domain/GetRankedGamesUseCase.kt` — `observe(): Flow<...>`
+- `ranking/data/RankingRepositoryImpl.kt` — joins the two remote sources, scores, marks trending, polls
+- `ranking/presentation/RankingViewModel.kt` + `RankingScreen.kt`
+
+**Scoring logic:** the composite score formula and the trending/review-description helpers are private members of `RankingRepositoryImpl`, not a separate class. They were originally a standalone `RankingCalculator` utility, but that class had only one caller and no domain meaning of its own (it was a bag of static functions). Inlining it into the repository removes a layer of indirection that added no value.
+
+---
+
+### GameDetail
+
+**What it is:** the full profile of a specific game — static metadata, screenshots, Metacritic score, live player count, community reviews, and current store deals.
+
+**Why it is a domain object:** a user navigates to a game's detail page on demand; the data is fetched once and cached for 24 hours. This is a pull-on-demand lifecycle, entirely different from the live-polled ranking. It also draws from a completely different set of sources (Steam Store, Steam Web API, Steam Reviews, CheapShark) that the ranking never touches.
+
+**What that implies in code:**
+- `detail/domain/GameDetail.kt` — the entity
+- `detail/domain/Deal.kt` — value object embedded in `GameDetail` (see below)
+- `detail/domain/GameDetailRepository.kt` — contract: `getGameDetail(appId, name): AppResult<GameDetail>`
+- `detail/domain/GetGameDetailUseCase.kt` — `execute(appId, name): AppResult<GameDetail>`
+- `detail/data/GameDetailRepositoryImpl.kt` — assembles the full detail from four remote sources in parallel
+- `detail/presentation/DetailViewModel.kt` + `DetailScreen.kt`
+
+---
+
+### Deal
+
+**What it is:** a store deal for a game — store name, price, discount percentage, and a link.
+
+**Why it is NOT a domain object:** it has no lifecycle of its own. Deals are always fetched as part of assembling a `GameDetail` and are never requested independently. There is no screen, no use case, and no repository that exists solely for deals. Making it a first-class domain object would add `DealsRepository` and `GetDealsUseCase` with a single caller each — pointless indirection.
+
+**What that implies in code:** `Deal` is a plain data class inside `detail/domain/` and a field on `GameDetail`. When CheapShark is unavailable, `deals` is an empty list; the rest of the detail loads normally. A `DealsRepository` and `GetGameDealsUseCase` existed in an earlier version of the codebase and were deleted as dead code.
+
+---
+
+### NewsArticle
+
+**What it is:** a news article — title, source, URL, and publication date. It can come from Steam's official news feed for a specific game or from NewsAPI's general gaming headlines.
+
+**Why it is a domain object:** it has its own screen (`NewsScreen`), its own repository, and its own cache TTL (30 minutes). It is never embedded in another entity.
+
+**Why there are two use cases for one entity:** the app has two distinct news contexts. `GetGameNewsUseCase` fetches Steam's official news for a specific game and is used when the user taps the "Noticias" button from a game's detail screen. `GetGeneralNewsUseCase` fetches general gaming headlines from NewsAPI and is used in the main news tab. Both contexts render the same `NewsScreen` with the same `NewsViewModel`, which adapts based on whether it receives a game `appId` or a free-text query. Because they share the screen, the entity, and the ViewModel, they belong to the same feature. The distinction between the two is a navigation concern (which parameters are passed), not a domain boundary.
+
+**What that implies in code:**
+- `news/domain/NewsArticle.kt` — the entity
+- `news/domain/NewsRepository.kt` — contract: `getNews(query): AppResult<List<NewsArticle>>` and `getNewsForGame(appId): AppResult<List<NewsArticle>>`
+- `news/domain/GetGameNewsUseCase.kt` / `GetGeneralNewsUseCase.kt` — one use case per context
+- `news/data/NewsRepositoryImpl.kt` — delegates to `SteamNewsProxy` or `NewsApiProxy` depending on the method called
+- `news/presentation/NewsViewModel.kt` + `NewsScreen.kt`
+
+---
 
 ## Tech Stack
 
@@ -107,7 +196,7 @@ Requires JDK 21 (the build pins `jvmToolchain(21)`).
 ./gradlew :composeApp:desktopTest
 ```
 
-All ranking data sources work without an API key. Only the **general gaming news** feed needs a free [NewsAPI](https://newsapi.org) key — without it every other feature still works. To enable it, add the key to `local.properties` at the repo root:
+All ranking data sources work without an API key. Only the **general gaming news** feed needs a free [NewsAPI](https://newsapi.org) key; without it every other feature still works. To enable it, add the key to `local.properties` at the repo root:
 
 ```properties
 NEWS_API_KEY=your_key_here

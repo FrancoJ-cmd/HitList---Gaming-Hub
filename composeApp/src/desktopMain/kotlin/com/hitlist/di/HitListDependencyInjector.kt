@@ -2,24 +2,26 @@ package com.hitlist.di
 
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.hitlist.data.local.LocalDataSourceImpl
-import com.hitlist.data.remote.cheapshark.CheapSharkProxy
-import com.hitlist.data.remote.newsapi.NewsApiProxy
-import com.hitlist.data.remote.steamcharts.SteamChartsProxy
-import com.hitlist.data.remote.steamnews.SteamNewsProxy
-import com.hitlist.data.remote.steamspy.SteamSpyProxy
-import com.hitlist.data.remote.steamstore.SteamStoreProxy
-import com.hitlist.data.remote.steamweb.SteamWebProxy
-import com.hitlist.data.repository.DealsRepositoryImpl
-import com.hitlist.data.repository.GameRepositoryImpl
-import com.hitlist.data.repository.NewsRepositoryImpl
-import com.hitlist.data.repository.RankingSourceBroker
-import com.hitlist.domain.usecase.GetGameDetailUseCaseImpl
-import com.hitlist.domain.usecase.GetGameNewsUseCaseImpl
-import com.hitlist.domain.usecase.GetRankedGamesUseCaseImpl
-import com.hitlist.presentation.detail.DetailViewModel
-import com.hitlist.presentation.news.NewsViewModel
-import com.hitlist.presentation.ranking.RankingViewModel
+import com.hitlist.common.data.LocalDataSourceImpl
+import com.hitlist.detail.data.GameDetailRepositoryImpl
+import com.hitlist.detail.data.cheapshark.CheapSharkProxy
+import com.hitlist.detail.data.steamstore.SteamStoreMetadataProxy
+import com.hitlist.detail.data.steamstore.SteamStoreReviewProxy
+import com.hitlist.detail.data.steamweb.SteamWebProxy
+import com.hitlist.detail.domain.GetGameDetailUseCaseImpl
+import com.hitlist.detail.presentation.DetailViewModel
+import com.hitlist.news.data.NewsRepositoryImpl
+import com.hitlist.news.data.newsapi.NewsApiProxy
+import com.hitlist.news.data.steamnews.SteamNewsProxy
+import com.hitlist.news.domain.GetGameNewsUseCaseImpl
+import com.hitlist.news.domain.GetGeneralNewsUseCaseImpl
+import com.hitlist.news.presentation.NewsViewModel
+import com.hitlist.ranking.data.CombinedRankingSourceImpl
+import com.hitlist.ranking.data.RankingRepositoryImpl
+import com.hitlist.ranking.data.steamcharts.SteamChartsProxy
+import com.hitlist.ranking.data.steamspy.SteamSpyProxy
+import com.hitlist.ranking.domain.GetRankedGamesUseCaseImpl
+import com.hitlist.ranking.presentation.RankingViewModel
 import java.io.File
 import java.util.Properties
 
@@ -44,32 +46,35 @@ object HitListDependencyInjector {
     private val steamChartsProxy = SteamChartsProxy.create()
     private val steamSpyProxy = SteamSpyProxy.create()
     private val steamWebProxy = SteamWebProxy.create()
-    private val steamStoreProxy = SteamStoreProxy.create()
+    private val steamStoreMetadataProxy = SteamStoreMetadataProxy.create()
+    private val steamStoreReviewProxy = SteamStoreReviewProxy.create()
     private val cheapSharkProxy = CheapSharkProxy.create()
     private val steamNewsProxy = SteamNewsProxy.create()
     private val newsApiProxy by lazy { NewsApiProxy.create(newsApiKey) }
 
-    private val rankingSourceBroker = RankingSourceBroker(
-        localDataSource,
+    private val combinedRankingSource = CombinedRankingSourceImpl(
         liveRankingSource = steamChartsProxy,
         rankingMetadataSource = steamSpyProxy
     )
 
-    private val gameRepository = GameRepositoryImpl(
-        localDataSource,
-        rankingSource = rankingSourceBroker,
+    private val rankingRepository = RankingRepositoryImpl(
+        rankingCacheSource = localDataSource,
+        rankingSource = combinedRankingSource
+    )
+    private val gameDetailRepository = GameDetailRepositoryImpl(
+        gameDetailCacheSource = localDataSource,
         playerCountSource = steamWebProxy,
-        metadataSource = steamStoreProxy,
-        reviewSource = steamStoreProxy,
+        metadataSource = steamStoreMetadataProxy,
+        reviewSource = steamStoreReviewProxy,
         dealsSource = cheapSharkProxy
     )
     private val newsRepository by lazy {
         NewsRepositoryImpl(localDataSource, newsApiProxy, steamNewsProxy)
     }
-    private val dealsRepository = DealsRepositoryImpl(localDataSource, cheapSharkProxy)
 
-    private val getRankedGamesUseCase = GetRankedGamesUseCaseImpl(gameRepository)
-    private val getGameDetailUseCase = GetGameDetailUseCaseImpl(gameRepository)
+    private val getRankedGamesUseCase = GetRankedGamesUseCaseImpl(rankingRepository)
+    private val getGameDetailUseCase = GetGameDetailUseCaseImpl(gameDetailRepository)
+    private val getGeneralNewsUseCase by lazy { GetGeneralNewsUseCaseImpl(newsRepository) }
     private val getGameNewsUseCase by lazy { GetGameNewsUseCaseImpl(newsRepository) }
 
     val isNewsApiConfigured: Boolean get() = newsApiKey.isNotBlank()
@@ -84,5 +89,5 @@ object HitListDependencyInjector {
 
     @Composable
     fun getNewsViewModel(): NewsViewModel =
-        viewModel { NewsViewModel(getGameNewsUseCase) }
+        viewModel { NewsViewModel(getGeneralNewsUseCase, getGameNewsUseCase) }
 }
