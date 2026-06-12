@@ -1,7 +1,6 @@
 package com.hitlist.ranking.data
 
 import com.hitlist.common.data.CachePolicy
-import com.hitlist.common.data.LocalDataSourceFake
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -12,7 +11,7 @@ import kotlin.test.assertEquals
 class CachedRankingMetadataSourceTest {
 
     private val delegate = mockk<RankingMetadataSource>()
-    private val cache = LocalDataSourceFake()
+    private val cache = RankingCacheFake()
 
     private fun givenSource() = CachedRankingMetadataSource(delegate, cache)
 

@@ -2,7 +2,6 @@ package com.hitlist.ranking.data
 
 import com.hitlist.common.data.CachePolicy
 import com.hitlist.common.domain.AppResult
-import com.hitlist.common.data.LocalDataSourceFake
 import com.hitlist.ranking.domain.RankedGame
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -23,11 +22,11 @@ class RankingRepositoryImplTest {
         0.7, 400000, 0.8, "Very Positive", 2000000, emptyList(), false
     )
 
-    private fun givenRepo(local: LocalDataSourceFake) = RankingRepositoryImpl(local, rankingSource)
+    private fun givenRepo(local: RankingCacheFake) = RankingRepositoryImpl(local, rankingSource)
 
     @Test
     fun `given valid cache, returns cached data without remote calls`() {
-        val local = LocalDataSourceFake()
+        val local = RankingCacheFake()
         val cached = listOf(givenGame())
         local.seedRankedGames(cached, System.currentTimeMillis())
         val repo = givenRepo(local)
@@ -42,7 +41,7 @@ class RankingRepositoryImplTest {
 
     @Test
     fun `given expired cache and no network, returns stale data`() {
-        val local = LocalDataSourceFake()
+        val local = RankingCacheFake()
         val staleGames = listOf(givenGame())
         val expiredAt = System.currentTimeMillis() - CachePolicy.LIVE_PLAYERS_TTL_MS - 1000
         local.seedRankedGames(staleGames, expiredAt)
@@ -59,7 +58,7 @@ class RankingRepositoryImplTest {
 
     @Test
     fun `given no cache and no network, returns failure`() {
-        val local = LocalDataSourceFake()
+        val local = RankingCacheFake()
         coEvery { rankingSource.getCombinedRanking() } throws Exception("No network")
         val repo = givenRepo(local)
 
@@ -70,7 +69,7 @@ class RankingRepositoryImplTest {
 
     @Test
     fun `given expired cache and network available, fetches fresh data`() {
-        val local = LocalDataSourceFake()
+        val local = RankingCacheFake()
         val expiredAt = System.currentTimeMillis() - CachePolicy.LIVE_PLAYERS_TTL_MS - 1000
         local.seedRankedGames(listOf(givenGame()), expiredAt)
 

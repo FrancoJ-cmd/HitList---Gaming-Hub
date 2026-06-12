@@ -1,4 +1,4 @@
-package com.hitlist.common.data
+package com.hitlist.news.data
 
 import com.hitlist.news.domain.NewsArticle
 

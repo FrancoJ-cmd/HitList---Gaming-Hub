@@ -1,7 +1,6 @@
 package com.hitlist.news.data
 
 import com.hitlist.common.data.CachePolicy
-import com.hitlist.common.data.NewsCacheSource
 import com.hitlist.common.data.toAppResult
 import com.hitlist.common.domain.AppResult
 import com.hitlist.news.domain.NewsArticle

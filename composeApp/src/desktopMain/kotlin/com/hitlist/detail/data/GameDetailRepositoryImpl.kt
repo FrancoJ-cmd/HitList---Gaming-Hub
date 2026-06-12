@@ -1,7 +1,6 @@
 package com.hitlist.detail.data
 
 import com.hitlist.common.data.CachePolicy
-import com.hitlist.common.data.GameDetailCacheSource
 import com.hitlist.common.data.toAppResult
 import com.hitlist.common.domain.AppResult
 import com.hitlist.detail.domain.GameDetail

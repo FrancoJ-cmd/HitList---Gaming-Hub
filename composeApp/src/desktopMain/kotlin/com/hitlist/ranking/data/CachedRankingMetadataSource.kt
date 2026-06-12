@@ -1,7 +1,6 @@
 package com.hitlist.ranking.data
 
 import com.hitlist.common.data.CachePolicy
-import com.hitlist.common.data.RankingMetadataCacheSource
 
 class CachedRankingMetadataSource(
     private val delegate: RankingMetadataSource,
