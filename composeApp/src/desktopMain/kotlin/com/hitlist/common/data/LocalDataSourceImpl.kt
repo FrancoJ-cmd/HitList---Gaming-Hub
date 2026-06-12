@@ -2,15 +2,17 @@ package com.hitlist.common.data
 
 import com.hitlist.detail.domain.GameDetail
 import com.hitlist.news.domain.NewsArticle
+import com.hitlist.ranking.data.GameMetadataSeed
 import com.hitlist.ranking.domain.RankedGame
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
 
 class LocalDataSourceImpl(cacheDir: File = defaultCacheDir()) :
-    RankingCacheSource, GameDetailCacheSource, NewsCacheSource {
+    RankingCacheSource, RankingMetadataCacheSource, GameDetailCacheSource, NewsCacheSource {
 
     private val rankedGamesFile = File(cacheDir, "ranked_games.json")
+    private val rankingMetadataFile = File(cacheDir, "ranking_metadata.json")
     private val json = Json { ignoreUnknownKeys = true }
 
     init {
@@ -27,6 +29,18 @@ class LocalDataSourceImpl(cacheDir: File = defaultCacheDir()) :
             data = games.map { SerializableRankedGame.fromDomain(it) }
         )
         rankedGamesFile.writeText(json.encodeToString(entry))
+    }
+
+    override fun getRankingMetadata(): Pair<Map<Int, GameMetadataSeed>, Long>? =
+        readCache<CacheEntry<Map<Int, SerializableGameMetadataSeed>>>(rankingMetadataFile)
+            ?.let { entry -> entry.data.mapValues { it.value.toModel() } to entry.cachedAt }
+
+    override fun saveRankingMetadata(metadata: Map<Int, GameMetadataSeed>, cachedAt: Long) {
+        val entry = CacheEntry(
+            cachedAt = cachedAt,
+            data = metadata.mapValues { SerializableGameMetadataSeed.fromModel(it.value) }
+        )
+        rankingMetadataFile.writeText(json.encodeToString(entry))
     }
 
     override fun getGameDetail(appId: Int): Pair<GameDetail, Long>? {

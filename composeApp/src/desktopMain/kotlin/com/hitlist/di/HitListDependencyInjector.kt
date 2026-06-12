@@ -55,7 +55,7 @@ object HitListDependencyInjector {
 
     private val combinedRankingSource = CombinedRankingSourceImpl(
         liveRankingSource = steamChartsProxy,
-        rankingMetadataSource = CachedRankingMetadataSource(steamSpyProxy)
+        rankingMetadataSource = CachedRankingMetadataSource(steamSpyProxy, localDataSource)
     )
 
     private val rankingRepository = RankingRepositoryImpl(

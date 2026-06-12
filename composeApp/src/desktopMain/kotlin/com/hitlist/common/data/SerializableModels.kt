@@ -3,11 +3,28 @@ package com.hitlist.common.data
 import com.hitlist.detail.domain.Deal
 import com.hitlist.detail.domain.GameDetail
 import com.hitlist.news.domain.NewsArticle
+import com.hitlist.ranking.data.GameMetadataSeed
 import com.hitlist.ranking.domain.RankedGame
 import kotlinx.serialization.Serializable
 
 @Serializable
 data class CacheEntry<T>(val cachedAt: Long, val data: T)
+
+@Serializable
+data class SerializableGameMetadataSeed(
+    val appId: Int,
+    val name: String,
+    val positiveReviews: Int,
+    val negativeReviews: Int,
+    val genres: List<String>
+) {
+    fun toModel() = GameMetadataSeed(appId, name, positiveReviews, negativeReviews, genres)
+
+    companion object {
+        fun fromModel(s: GameMetadataSeed) =
+            SerializableGameMetadataSeed(s.appId, s.name, s.positiveReviews, s.negativeReviews, s.genres)
+    }
+}
 
 @Serializable
 data class SerializableRankedGame(

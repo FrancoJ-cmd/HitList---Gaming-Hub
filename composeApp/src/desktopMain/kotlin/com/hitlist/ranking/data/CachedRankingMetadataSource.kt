@@ -1,20 +1,18 @@
 package com.hitlist.ranking.data
 
 import com.hitlist.common.data.CachePolicy
+import com.hitlist.common.data.RankingMetadataCacheSource
 
 class CachedRankingMetadataSource(
-    private val delegate: RankingMetadataSource
+    private val delegate: RankingMetadataSource,
+    private val cache: RankingMetadataCacheSource
 ) : RankingMetadataSource {
 
-    private var cached: Map<Int, GameMetadataSeed>? = null
-    private var cachedAt = 0L
-
     override suspend fun getBulkMetadata(): Map<Int, GameMetadataSeed> {
-        cached?.let { if (CachePolicy.isValid(cachedAt, CachePolicy.SEED_LIST_TTL_MS)) return it }
-        return delegate.getBulkMetadata().also {
-            cached = it
-            cachedAt = System.currentTimeMillis()
+        cache.getRankingMetadata()?.let { (data, cachedAt) ->
+            if (CachePolicy.isValid(cachedAt, CachePolicy.SEED_LIST_TTL_MS)) return data
         }
+        return delegate.getBulkMetadata().also { cache.saveRankingMetadata(it, System.currentTimeMillis()) }
     }
 
     override suspend fun getMetadata(appId: Int): GameMetadataSeed? = delegate.getMetadata(appId)
