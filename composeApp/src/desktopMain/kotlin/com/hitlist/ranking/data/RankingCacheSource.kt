@@ -1,4 +1,4 @@
-package com.hitlist.common.data
+package com.hitlist.ranking.data
 
 import com.hitlist.ranking.domain.RankedGame
 

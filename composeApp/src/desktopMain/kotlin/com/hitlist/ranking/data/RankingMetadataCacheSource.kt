@@ -1,6 +1,4 @@
-package com.hitlist.common.data
-
-import com.hitlist.ranking.data.GameMetadataSeed
+package com.hitlist.ranking.data
 
 interface RankingMetadataCacheSource {
     fun getRankingMetadata(): Pair<Map<Int, GameMetadataSeed>, Long>?

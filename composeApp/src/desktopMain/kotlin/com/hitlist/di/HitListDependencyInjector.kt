@@ -2,7 +2,8 @@ package com.hitlist.di
 
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.hitlist.common.data.LocalDataSourceImpl
+import com.hitlist.common.data.JsonFileStore
+import com.hitlist.detail.data.GameDetailFileCache
 import com.hitlist.detail.data.GameDetailRepositoryImpl
 import com.hitlist.detail.data.cheapshark.CheapSharkProxy
 import com.hitlist.detail.data.steamstore.SteamStoreMetadataProxy
@@ -10,6 +11,7 @@ import com.hitlist.detail.data.steamstore.SteamStoreReviewProxy
 import com.hitlist.detail.data.steamweb.SteamWebProxy
 import com.hitlist.detail.domain.GetGameDetailUseCaseImpl
 import com.hitlist.detail.presentation.DetailViewModel
+import com.hitlist.news.data.NewsFileCache
 import com.hitlist.news.data.NewsRepositoryImpl
 import com.hitlist.news.data.newsapi.NewsApiProxy
 import com.hitlist.news.data.steamnews.SteamNewsProxy
@@ -18,6 +20,7 @@ import com.hitlist.news.domain.GetGeneralNewsUseCaseImpl
 import com.hitlist.news.presentation.NewsViewModel
 import com.hitlist.ranking.data.CachedRankingMetadataSource
 import com.hitlist.ranking.data.CombinedRankingSourceImpl
+import com.hitlist.ranking.data.RankingFileCache
 import com.hitlist.ranking.data.RankingRepositoryImpl
 import com.hitlist.ranking.data.steamcharts.SteamChartsProxy
 import com.hitlist.ranking.data.steamspy.SteamSpyProxy
@@ -42,7 +45,10 @@ object HitListDependencyInjector {
         props.getProperty("NEWS_API_KEY", "")
     }
 
-    private val localDataSource = LocalDataSourceImpl()
+    private val jsonFileStore = JsonFileStore()
+    private val rankingFileCache = RankingFileCache(jsonFileStore)
+    private val gameDetailFileCache = GameDetailFileCache(jsonFileStore)
+    private val newsFileCache = NewsFileCache(jsonFileStore)
 
     private val steamChartsProxy = SteamChartsProxy.create()
     private val steamSpyProxy = SteamSpyProxy.create()
@@ -55,22 +61,22 @@ object HitListDependencyInjector {
 
     private val combinedRankingSource = CombinedRankingSourceImpl(
         liveRankingSource = steamChartsProxy,
-        rankingMetadataSource = CachedRankingMetadataSource(steamSpyProxy, localDataSource)
+        rankingMetadataSource = CachedRankingMetadataSource(steamSpyProxy, rankingFileCache)
     )
 
     private val rankingRepository = RankingRepositoryImpl(
-        rankingCacheSource = localDataSource,
+        rankingCacheSource = rankingFileCache,
         rankingSource = combinedRankingSource
     )
     private val gameDetailRepository = GameDetailRepositoryImpl(
-        gameDetailCacheSource = localDataSource,
+        gameDetailCacheSource = gameDetailFileCache,
         playerCountSource = steamWebProxy,
         metadataSource = steamStoreMetadataProxy,
         reviewSource = steamStoreReviewProxy,
         dealsSource = cheapSharkProxy
     )
     private val newsRepository by lazy {
-        NewsRepositoryImpl(localDataSource, newsApiProxy, steamNewsProxy)
+        NewsRepositoryImpl(newsFileCache, newsApiProxy, steamNewsProxy)
     }
 
     private val getRankedGamesUseCase = GetRankedGamesUseCaseImpl(rankingRepository)

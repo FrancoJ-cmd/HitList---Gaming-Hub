@@ -1,4 +1,4 @@
-package com.hitlist.common.data
+package com.hitlist.detail.data
 
 import com.hitlist.detail.domain.GameDetail
 

@@ -22,8 +22,7 @@
 .idea/*.iml
 .idea/modules
 *.iml
-*.ipr
-
+.CLAUDE.md
 cmake-build-*/
 out/
 .idea_modules/
