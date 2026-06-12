@@ -16,6 +16,7 @@ import com.hitlist.news.data.steamnews.SteamNewsProxy
 import com.hitlist.news.domain.GetGameNewsUseCaseImpl
 import com.hitlist.news.domain.GetGeneralNewsUseCaseImpl
 import com.hitlist.news.presentation.NewsViewModel
+import com.hitlist.ranking.data.CachedRankingMetadataSource
 import com.hitlist.ranking.data.CombinedRankingSourceImpl
 import com.hitlist.ranking.data.RankingRepositoryImpl
 import com.hitlist.ranking.data.steamcharts.SteamChartsProxy
@@ -54,7 +55,7 @@ object HitListDependencyInjector {
 
     private val combinedRankingSource = CombinedRankingSourceImpl(
         liveRankingSource = steamChartsProxy,
-        rankingMetadataSource = steamSpyProxy
+        rankingMetadataSource = CachedRankingMetadataSource(steamSpyProxy)
     )
 
     private val rankingRepository = RankingRepositoryImpl(
