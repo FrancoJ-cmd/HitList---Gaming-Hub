@@ -2,16 +2,24 @@ package com.hitlist.common.data
 
 import com.hitlist.detail.domain.GameDetail
 import com.hitlist.news.domain.NewsArticle
+import com.hitlist.ranking.data.GameMetadataSeed
 import com.hitlist.ranking.domain.RankedGame
 
-class LocalDataSourceFake : RankingCacheSource, GameDetailCacheSource, NewsCacheSource {
+class LocalDataSourceFake :
+    RankingCacheSource, RankingMetadataCacheSource, GameDetailCacheSource, NewsCacheSource {
     private var rankedGames: Pair<List<RankedGame>, Long>? = null
+    private var rankingMetadata: Pair<Map<Int, GameMetadataSeed>, Long>? = null
     private val gameDetails = mutableMapOf<Int, Pair<GameDetail, Long>>()
     private val news = mutableMapOf<String, Pair<List<NewsArticle>, Long>>()
 
     override fun getRankedGames() = rankedGames
     override fun saveRankedGames(games: List<RankedGame>) {
         rankedGames = games to System.currentTimeMillis()
+    }
+
+    override fun getRankingMetadata() = rankingMetadata
+    override fun saveRankingMetadata(metadata: Map<Int, GameMetadataSeed>, cachedAt: Long) {
+        rankingMetadata = metadata to cachedAt
     }
 
     override fun getGameDetail(appId: Int) = gameDetails[appId]
@@ -26,6 +34,10 @@ class LocalDataSourceFake : RankingCacheSource, GameDetailCacheSource, NewsCache
 
     fun seedRankedGames(games: List<RankedGame>, cachedAt: Long = System.currentTimeMillis()) {
         rankedGames = games to cachedAt
+    }
+
+    fun seedRankingMetadata(metadata: Map<Int, GameMetadataSeed>, cachedAt: Long = System.currentTimeMillis()) {
+        rankingMetadata = metadata to cachedAt
     }
 
     fun seedGameDetail(detail: GameDetail, cachedAt: Long = System.currentTimeMillis()) {
