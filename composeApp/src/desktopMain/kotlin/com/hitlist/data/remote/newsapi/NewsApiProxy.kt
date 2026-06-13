@@ -8,8 +8,8 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.DefaultRequest
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.get
+import io.ktor.client.request.parameter
 import io.ktor.http.URLProtocol
-import io.ktor.http.encodeURLParameter
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 
@@ -21,8 +21,12 @@ class NewsApiProxy(
     override suspend fun getNews(query: String): List<NewsArticle> {
         if (apiKey.isBlank()) return emptyList()
         return runCatching {
-            val encoded = "\"$query\"".encodeURLParameter()
-            client.get("/v2/everything?q=$encoded&language=en&sortBy=publishedAt&apiKey=$apiKey")
+            client.get("/v2/everything") {
+                parameter("q", "\"$query\"")
+                parameter("language", "en")
+                parameter("sortBy", "publishedAt")
+                parameter("apiKey", apiKey)
+            }
                 .body<NewsResponseDto>()
                 .articles
                 .filter { it.title.isNotBlank() && it.title != "[Removed]" }
@@ -38,17 +42,4 @@ class NewsApiProxy(
         imageUrl = urlToImage,
         publishedAt = publishedAt
     )
-
-    companion object {
-        fun create(apiKey: String) = NewsApiProxy(
-            client = HttpClient {
-                install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
-                install(DefaultRequest) {
-                    url { protocol = URLProtocol.HTTPS; host = "newsapi.org" }
-                }
-                install(HttpTimeout) { requestTimeoutMillis = 10_000 }
-            },
-            apiKey = apiKey
-        )
-    }
 }

@@ -29,7 +29,7 @@ class SteamNewsProxy(private val client: HttpClient) : GameNewsSource {
 
     private fun SteamNewsItemDto.toDomain() = NewsArticle(
         title = title,
-        description = contents.stripHtml().take(200).ifBlank { null },
+        description = contents.stripHtml().take(MAX_DESCRIPTION_LENGTH).ifBlank { null },
         sourceName = feedLabel.ifBlank { "Steam" },
         url = url,
         imageUrl = null,
@@ -45,15 +45,7 @@ class SteamNewsProxy(private val client: HttpClient) : GameNewsSource {
             .format(DateTimeFormatter.ISO_LOCAL_DATE)
     }.getOrDefault(epochSeconds.toString())
 
-    companion object {
-        fun create() = SteamNewsProxy(
-            HttpClient {
-                install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
-                install(DefaultRequest) {
-                    url { protocol = URLProtocol.HTTPS; host = "api.steampowered.com" }
-                }
-                install(HttpTimeout) { requestTimeoutMillis = 10_000 }
-            }
-        )
+    private companion object {
+        const val MAX_DESCRIPTION_LENGTH = 200
     }
 }

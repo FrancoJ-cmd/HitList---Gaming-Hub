@@ -36,24 +36,16 @@ class CheapSharkProxy(private val client: HttpClient) : GameDealsSource {
         }
     }.getOrDefault(emptyList())
 
-    private fun storeIdToName(storeId: String): String = when (storeId) {
-        "1" -> "Steam"
-        "25" -> "GOG"
-        "11" -> "Humble Store"
-        "7" -> "GamersGate"
-        "6" -> "Dealgame"
-        else -> "Store $storeId"
-    }
+    private fun storeIdToName(storeId: String): String =
+        STORE_NAMES[storeId] ?: "Store $storeId"
 
-    companion object {
-        fun create() = CheapSharkProxy(
-            HttpClient {
-                install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
-                install(DefaultRequest) {
-                    url { protocol = URLProtocol.HTTPS; host = "www.cheapshark.com" }
-                }
-                install(HttpTimeout) { requestTimeoutMillis = 10_000 }
-            }
+    private companion object {
+        val STORE_NAMES = mapOf(
+            "1"  to "Steam",
+            "25" to "GOG",
+            "11" to "Humble Store",
+            "7"  to "GamersGate",
+            "6"  to "Dealgame"
         )
     }
 }

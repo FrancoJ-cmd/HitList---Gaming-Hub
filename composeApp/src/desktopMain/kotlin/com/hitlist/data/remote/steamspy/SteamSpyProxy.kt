@@ -33,16 +33,4 @@ class SteamSpyProxy(private val client: HttpClient) : GameRankingSource {
                 }
         }
     }
-
-    companion object {
-        fun create() = SteamSpyProxy(
-            HttpClient {
-                install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
-                install(DefaultRequest) {
-                    url { protocol = URLProtocol.HTTPS; host = "steamspy.com" }
-                }
-                install(HttpTimeout) { requestTimeoutMillis = 10_000 }
-            }
-        )
-    }
 }
