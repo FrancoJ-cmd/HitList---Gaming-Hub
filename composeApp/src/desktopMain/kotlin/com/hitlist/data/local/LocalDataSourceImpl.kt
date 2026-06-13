@@ -7,6 +7,7 @@ import com.hitlist.domain.entity.RankedGame
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
+import java.security.MessageDigest
 
 class LocalDataSourceImpl(cacheDir: File = defaultCacheDir()) : LocalDataSource {
 
@@ -76,13 +77,20 @@ class LocalDataSourceImpl(cacheDir: File = defaultCacheDir()) : LocalDataSource 
             if (file.exists()) json.decodeFromString<T>(file.readText()) else null
         }.getOrNull()
 
-    private fun detailFile(appId: Int) = File(rankedGamesFile.parentFile, "game_detail_$appId.json")
+    private fun detailFile(appId: Int) =
+        File(rankedGamesFile.parentFile, "game_detail_$appId.json")
 
     private fun dealsFile(gameName: String) =
-        File(rankedGamesFile.parentFile, "deals_${gameName.hashCode()}.json")
+        File(rankedGamesFile.parentFile, "deals_${safeKey(gameName)}.json")
 
     private fun newsFile(query: String) =
-        File(rankedGamesFile.parentFile, "news_${query.hashCode()}.json")
+        File(rankedGamesFile.parentFile, "news_${safeKey(query)}.json")
+
+    private fun safeKey(input: String): String {
+        val digest = MessageDigest.getInstance("MD5")
+            .digest(input.toByteArray(Charsets.UTF_8))
+        return digest.joinToString("") { "%02x".format(it) }.take(16)
+    }
 
     companion object {
         fun defaultCacheDir() = File("cache")

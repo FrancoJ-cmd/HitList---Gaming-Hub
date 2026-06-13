@@ -40,6 +40,10 @@ class LocalDataSourceFake : LocalDataSource {
         gameDetails[detail.steamAppId] = detail to cachedAt
     }
 
+    fun seedDeals(gameName: String, dealList: List<Deal>, cachedAt: Long = System.currentTimeMillis()) {
+        deals[gameName] = dealList to cachedAt
+    }
+
     fun seedNews(query: String, articles: List<NewsArticle>, cachedAt: Long = System.currentTimeMillis()) {
         news[query] = articles to cachedAt
     }

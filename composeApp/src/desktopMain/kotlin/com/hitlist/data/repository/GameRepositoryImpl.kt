@@ -48,25 +48,32 @@ class GameRepositoryImpl(
     private suspend fun fetchFreshRanking(): List<RankedGame> {
         val seeds = rankingSource.getTopGames()
         val maxPlayers = seeds.maxOfOrNull { it.currentPlayers } ?: 0
-        return seeds.mapNotNull { seed ->
-            val totalReviews = seed.positiveReviews + seed.negativeReviews
-            val positiveRatio = if (totalReviews > 0) seed.positiveReviews.toDouble() / totalReviews else 0.0
-            val score = RankingCalculator.calculateScore(seed.currentPlayers, maxPlayers, positiveRatio, totalReviews)
-            if (score == 0.0 && totalReviews < RankingCalculator.MIN_REVIEWS_THRESHOLD) return@mapNotNull null
-            RankedGame(
-                steamAppId = seed.appId,
-                name = seed.name,
-                headerImageUrl = "https://cdn.akamai.steamstatic.com/steam/apps/${seed.appId}/header.jpg",
-                score = score,
-                currentPlayers = seed.currentPlayers,
-                positiveRatio = positiveRatio,
-                reviewScoreDesc = RankingCalculator.describeReviewScore(seed.positiveReviews, seed.negativeReviews),
-                totalReviews = totalReviews,
-                genres = seed.genres,
-                isTrending = false
-            )
-        }.sortedByDescending { it.score }
+        return seeds
+            .mapNotNull { seed -> buildRankedGame(seed, maxPlayers) }
+            .sortedByDescending { it.score }
     }
+
+    private fun buildRankedGame(seed: com.hitlist.data.remote.GameSeed, maxPlayers: Int): RankedGame? {
+        val totalReviews = seed.positiveReviews + seed.negativeReviews
+        val positiveRatio = if (totalReviews > 0) seed.positiveReviews.toDouble() / totalReviews else 0.0
+        val score = RankingCalculator.calculateScore(seed.currentPlayers, maxPlayers, positiveRatio, totalReviews)
+        if (score == 0.0 && totalReviews < RankingCalculator.MIN_REVIEWS_THRESHOLD) return null
+        return RankedGame(
+            steamAppId = seed.appId,
+            name = seed.name,
+            headerImageUrl = steamHeaderImageUrl(seed.appId),
+            score = score,
+            currentPlayers = seed.currentPlayers,
+            positiveRatio = positiveRatio,
+            reviewScoreDesc = RankingCalculator.describeReviewScore(seed.positiveReviews, seed.negativeReviews),
+            totalReviews = totalReviews,
+            genres = seed.genres,
+            isTrending = false
+        )
+    }
+
+    private fun steamHeaderImageUrl(appId: Int): String =
+        "https://cdn.akamai.steamstatic.com/steam/apps/$appId/header.jpg"
 
     override suspend fun getGameDetail(appId: Int, name: String): AppResult<GameDetail> {
         val cached = localDataSource.getGameDetail(appId)

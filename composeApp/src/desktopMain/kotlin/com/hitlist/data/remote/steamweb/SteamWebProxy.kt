@@ -18,16 +18,4 @@ class SteamWebProxy(private val client: HttpClient) : PlayerCountSource {
             .body<CurrentPlayersResponseDto>()
             .response.playerCount
     }.getOrDefault(0)
-
-    companion object {
-        fun create() = SteamWebProxy(
-            HttpClient {
-                install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
-                install(DefaultRequest) {
-                    url { protocol = URLProtocol.HTTPS; host = "api.steampowered.com" }
-                }
-                install(HttpTimeout) { requestTimeoutMillis = 5_000 }
-            }
-        )
-    }
 }
