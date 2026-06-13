@@ -15,7 +15,7 @@ import kotlinx.serialization.json.Json
 class SteamStoreReviewProxy(private val client: HttpClient) : GameReviewSource {
 
     override suspend fun getGameReviews(appId: Int): ReviewInfo? = runCatching {
-        client.get("/appreviews/$appId?json=1&num_per_page=0&language=all")
+        client.get("/appreviews/$appId?json=1&num_per_page=0&language=all&l=english")
             .body<AppReviewsResponseDto>()
             .querySummary
             ?.toReviewInfo()
