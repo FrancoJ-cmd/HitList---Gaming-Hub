@@ -19,7 +19,7 @@ class SteamStoreMetadataProxy(private val client: HttpClient) : GameMetadataSour
     private val json = Json { ignoreUnknownKeys = true }
 
     override suspend fun getGameMetadata(appId: Int): GameMetadata? = runCatching {
-        val raw = client.get("/api/appdetails?appids=$appId").body<JsonObject>()
+        val raw = client.get("/api/appdetails?appids=$appId&l=english&cc=us").body<JsonObject>()
         val wrapper = json.decodeFromJsonElement<AppDetailsWrapperDto>(raw[appId.toString()]!!)
         wrapper.data?.takeIf { wrapper.success }?.toGameMetadata()
     }.getOrNull()
