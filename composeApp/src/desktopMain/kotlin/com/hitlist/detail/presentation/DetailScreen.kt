@@ -59,7 +59,10 @@ fun DetailScreen(
                     Modifier.align(Alignment.Center),
                     color = Indigo
                 )
-                is UiState.Success -> DetailContent(detail = detailState.data, onNewsClick = onNewsClick)
+                is UiState.Success -> Column(Modifier.fillMaxSize()) {
+                    if (detailState.isStale) StaleBanner()
+                    DetailContent(detail = detailState.data, onNewsClick = onNewsClick)
+                }
                 is UiState.Error -> ErrorScreen(
                     message = detailState.error.toUserMessage(),
                     onRetry = { viewModel.loadDetail(appId, name) }

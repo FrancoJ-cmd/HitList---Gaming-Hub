@@ -22,7 +22,9 @@ class DetailViewModel(
         _uiState.update { it.copy(detailState = UiState.Loading) }
         viewModelScope.launch {
             when (val result = getGameDetailUseCase.execute(appId, name)) {
-                is AppResult.Success -> _uiState.update { it.copy(detailState = UiState.Success(result.data)) }
+                is AppResult.Success -> _uiState.update {
+                    it.copy(detailState = UiState.Success(result.data.value, isStale = result.data.isStale))
+                }
                 is AppResult.Failure -> _uiState.update { it.copy(detailState = UiState.Error(result.error)) }
             }
         }

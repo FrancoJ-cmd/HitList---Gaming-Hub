@@ -24,7 +24,9 @@ class NewsViewModel(
         _uiState.update { it.copy(articlesState = UiState.Loading) }
         viewModelScope.launch {
             when (val result = getGeneralNewsUseCase.execute(query)) {
-                is AppResult.Success -> _uiState.update { it.copy(articlesState = UiState.Success(result.data)) }
+                is AppResult.Success -> _uiState.update {
+                    it.copy(articlesState = UiState.Success(result.data.value, isStale = result.data.isStale))
+                }
                 is AppResult.Failure -> _uiState.update { it.copy(articlesState = UiState.Error(result.error)) }
             }
         }
@@ -34,7 +36,9 @@ class NewsViewModel(
         _uiState.update { it.copy(articlesState = UiState.Loading) }
         viewModelScope.launch {
             when (val result = getGameNewsUseCase.execute(appId)) {
-                is AppResult.Success -> _uiState.update { it.copy(articlesState = UiState.Success(result.data)) }
+                is AppResult.Success -> _uiState.update {
+                    it.copy(articlesState = UiState.Success(result.data.value, isStale = result.data.isStale))
+                }
                 is AppResult.Failure -> _uiState.update { it.copy(articlesState = UiState.Error(result.error)) }
             }
         }

@@ -2,7 +2,11 @@ package com.hitlist.ranking.data
 
 import com.hitlist.common.data.CachePolicy
 import com.hitlist.common.domain.AppResult
+import com.hitlist.common.domain.Stale
+import com.hitlist.ranking.domain.CombinedRanking
+import com.hitlist.ranking.domain.CombinedRankingEntry
 import com.hitlist.ranking.domain.RankedGame
+import com.hitlist.ranking.domain.Ranking
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -33,9 +37,9 @@ class RankingRepositoryImplTest {
 
         val result = runBlocking { repo.observeRankedGames().first() }
 
-        assertIs<AppResult.Success<Pair<List<RankedGame>, Boolean>>>(result)
-        assertEquals(cached, result.data.first)
-        assertFalse(result.data.second)
+        assertIs<AppResult.Success<Stale<Ranking>>>(result)
+        assertEquals(cached, result.data.value.games)
+        assertFalse(result.data.isStale)
         coVerify(exactly = 0) { rankingSource.getCombinedRanking() }
     }
 
@@ -51,9 +55,9 @@ class RankingRepositoryImplTest {
 
         val result = runBlocking { repo.observeRankedGames().first() }
 
-        assertIs<AppResult.Success<Pair<List<RankedGame>, Boolean>>>(result)
-        assertTrue(result.data.second)
-        assertEquals(staleGames, result.data.first)
+        assertIs<AppResult.Success<Stale<Ranking>>>(result)
+        assertTrue(result.data.isStale)
+        assertEquals(staleGames, result.data.value.games)
     }
 
     @Test
@@ -88,9 +92,9 @@ class RankingRepositoryImplTest {
         val repo = givenRepo(local)
         val result = runBlocking { repo.observeRankedGames().first() }
 
-        assertIs<AppResult.Success<Pair<List<RankedGame>, Boolean>>>(result)
-        assertFalse(result.data.second)
-        assertEquals(570, result.data.first.single().steamAppId)
+        assertIs<AppResult.Success<Stale<Ranking>>>(result)
+        assertFalse(result.data.isStale)
+        assertEquals(570, result.data.value.games.single().steamAppId)
     }
 }
 

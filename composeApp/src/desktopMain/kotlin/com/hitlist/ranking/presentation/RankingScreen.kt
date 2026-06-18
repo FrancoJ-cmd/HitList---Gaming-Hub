@@ -94,25 +94,6 @@ fun RankingScreen(
 }
 
 @Composable
-private fun StaleBanner() {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .background(Color(0xFF2D2508))
-            .padding(horizontal = 16.dp, vertical = 7.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Text("⚠", fontSize = 13.sp)
-        Text(
-            "Mostrando datos guardados, sin conexión",
-            fontSize = 12.sp,
-            color = Color(0xFFF5C842)
-        )
-    }
-}
-
-@Composable
 private fun GenreFilterRow(
     genres: List<String>,
     selectedGenre: String?,

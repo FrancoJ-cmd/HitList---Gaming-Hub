@@ -1,6 +1,7 @@
 package com.hitlist.news.domain
 
 import com.hitlist.common.domain.AppResult
+import com.hitlist.common.domain.Stale
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -14,17 +15,17 @@ class GetGeneralNewsUseCaseImplTest {
     @Test
     fun `given non-blank query, passes it through to repository`() {
         val articles = listOf(givenArticle("Dota 2 news"))
-        val repo = NewsRepositoryFake(result = AppResult.Success(articles))
+        val repo = NewsRepositoryFake(result = AppResult.Success(Stale(articles, false)))
         val useCase = GetGeneralNewsUseCaseImpl(repo)
         val result = runBlocking { useCase.execute("Dota 2") }
         assertEquals("Dota 2", repo.lastQuery)
-        assertIs<AppResult.Success<List<NewsArticle>>>(result)
-        assertEquals(articles, result.data)
+        assertIs<AppResult.Success<Stale<List<NewsArticle>>>>(result)
+        assertEquals(articles, result.data.value)
     }
 
     @Test
     fun `given blank query, uses gaming as fallback`() {
-        val repo = NewsRepositoryFake(result = AppResult.Success(emptyList()))
+        val repo = NewsRepositoryFake(result = AppResult.Success(Stale(emptyList(), false)))
         val useCase = GetGeneralNewsUseCaseImpl(repo)
         runBlocking { useCase.execute("   ") }
         assertEquals(GetGeneralNewsUseCaseImpl.DEFAULT_QUERY, repo.lastQuery)
@@ -32,7 +33,7 @@ class GetGeneralNewsUseCaseImplTest {
 
     @Test
     fun `given empty query, uses gaming as fallback`() {
-        val repo = NewsRepositoryFake(result = AppResult.Success(emptyList()))
+        val repo = NewsRepositoryFake(result = AppResult.Success(Stale(emptyList(), false)))
         val useCase = GetGeneralNewsUseCaseImpl(repo)
         runBlocking { useCase.execute("") }
         assertEquals(GetGeneralNewsUseCaseImpl.DEFAULT_QUERY, repo.lastQuery)
@@ -40,11 +41,11 @@ class GetGeneralNewsUseCaseImplTest {
 
     @Test
     fun `given empty article list, returns empty without error`() {
-        val repo = NewsRepositoryFake(result = AppResult.Success(emptyList()))
+        val repo = NewsRepositoryFake(result = AppResult.Success(Stale(emptyList(), false)))
         val useCase = GetGeneralNewsUseCaseImpl(repo)
         val result = runBlocking { useCase.execute("gaming") }
-        assertIs<AppResult.Success<List<NewsArticle>>>(result)
-        assertTrue(result.data.isEmpty())
+        assertIs<AppResult.Success<Stale<List<NewsArticle>>>>(result)
+        assertTrue(result.data.value.isEmpty())
     }
 }
 

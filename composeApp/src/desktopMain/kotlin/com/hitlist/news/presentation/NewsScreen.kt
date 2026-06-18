@@ -82,7 +82,10 @@ fun NewsScreen(
                         Modifier.align(Alignment.Center),
                         color = Indigo
                     )
-                    is UiState.Success -> ArticleList(articles = articlesState.data)
+                    is UiState.Success -> Column(Modifier.fillMaxSize()) {
+                        if (articlesState.isStale) StaleBanner()
+                        ArticleList(articles = articlesState.data)
+                    }
                     is UiState.Error -> ErrorScreen(
                         message = articlesState.error.toUserMessage(),
                         onRetry = {

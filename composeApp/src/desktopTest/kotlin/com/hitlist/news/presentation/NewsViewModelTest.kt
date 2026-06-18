@@ -2,6 +2,7 @@ package com.hitlist.news.presentation
 
 import com.hitlist.common.domain.AppError
 import com.hitlist.common.domain.AppResult
+import com.hitlist.common.domain.Stale
 import com.hitlist.common.presentation.UiState
 import com.hitlist.news.domain.GetGameNewsUseCaseFake
 import com.hitlist.news.domain.GetGeneralNewsUseCaseFake
@@ -28,14 +29,14 @@ class NewsViewModelTest {
     private fun givenArticle() = NewsArticle("Title", null, "Source", "https://url.com", null, "2024-01-01")
 
     private fun givenVm(
-        generalResult: AppResult<List<NewsArticle>> = AppResult.Success(emptyList()),
-        gameResult: AppResult<List<NewsArticle>> = AppResult.Success(emptyList())
+        generalResult: AppResult<Stale<List<NewsArticle>>> = AppResult.Success(Stale(emptyList(), false)),
+        gameResult: AppResult<Stale<List<NewsArticle>>> = AppResult.Success(Stale(emptyList(), false))
     ) = NewsViewModel(GetGeneralNewsUseCaseFake(generalResult), GetGameNewsUseCaseFake(gameResult))
 
     @Test
     fun `given query with results, state is Success with articles`() = runTest {
         val articles = listOf(givenArticle())
-        val vm = givenVm(generalResult = AppResult.Success(articles))
+        val vm = givenVm(generalResult = AppResult.Success(Stale(articles, false)))
         vm.loadGeneralNews("Dota 2")
         testDispatcher.scheduler.advanceUntilIdle()
 
@@ -74,7 +75,7 @@ class NewsViewModelTest {
     @Test
     fun `given appId, loadGameNews returns articles from game news use case`() = runTest {
         val articles = listOf(givenArticle())
-        val vm = givenVm(gameResult = AppResult.Success(articles))
+        val vm = givenVm(gameResult = AppResult.Success(Stale(articles, false)))
         vm.loadGameNews(730)
         testDispatcher.scheduler.advanceUntilIdle()
 

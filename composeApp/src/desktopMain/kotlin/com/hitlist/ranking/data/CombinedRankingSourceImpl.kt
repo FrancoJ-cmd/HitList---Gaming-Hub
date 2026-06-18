@@ -1,5 +1,7 @@
 package com.hitlist.ranking.data
 
+import com.hitlist.ranking.domain.CombinedRanking
+import com.hitlist.ranking.domain.CombinedRankingEntry
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope

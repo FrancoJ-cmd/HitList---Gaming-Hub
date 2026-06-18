@@ -2,6 +2,7 @@ package com.hitlist.detail.domain
 
 import com.hitlist.common.domain.AppError
 import com.hitlist.common.domain.AppResult
+import com.hitlist.common.domain.Stale
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -18,14 +19,17 @@ class GetGameDetailUseCaseImplTest {
         totalReviews = 2000000, deals = deals
     )
 
+    private fun success(detail: GameDetail, isStale: Boolean = false) =
+        AppResult.Success(Stale(detail, isStale))
+
     @Test
     fun `given valid appId, detail is returned`() {
         val detail = givenDetail()
-        val repo = GameDetailRepositoryFake(gameDetailResult = AppResult.Success(detail))
+        val repo = GameDetailRepositoryFake(gameDetailResult = success(detail))
         val useCase = GetGameDetailUseCaseImpl(repo)
         val result = runBlocking { useCase.execute(570, "Dota 2") }
-        assertIs<AppResult.Success<GameDetail>>(result)
-        assertEquals(detail, result.data)
+        assertIs<AppResult.Success<Stale<GameDetail>>>(result)
+        assertEquals(detail, result.data.value)
     }
 
     @Test
@@ -37,23 +41,32 @@ class GetGameDetailUseCaseImplTest {
     }
 
     @Test
-    fun `given CheapShark unavailable, detail is returned with empty deals`() {
-        val detail = givenDetail(deals = emptyList())
-        val repo = GameDetailRepositoryFake(gameDetailResult = AppResult.Success(detail))
+    fun `given stale cache fallback, stale flag is propagated`() {
+        val repo = GameDetailRepositoryFake(gameDetailResult = success(givenDetail(), isStale = true))
         val useCase = GetGameDetailUseCaseImpl(repo)
         val result = runBlocking { useCase.execute(570, "Dota 2") }
-        assertIs<AppResult.Success<GameDetail>>(result)
-        assertTrue(result.data.deals.isEmpty())
+        assertIs<AppResult.Success<Stale<GameDetail>>>(result)
+        assertTrue(result.data.isStale)
+    }
+
+    @Test
+    fun `given CheapShark unavailable, detail is returned with empty deals`() {
+        val detail = givenDetail(deals = emptyList())
+        val repo = GameDetailRepositoryFake(gameDetailResult = success(detail))
+        val useCase = GetGameDetailUseCaseImpl(repo)
+        val result = runBlocking { useCase.execute(570, "Dota 2") }
+        assertIs<AppResult.Success<Stale<GameDetail>>>(result)
+        assertTrue(result.data.value.deals.isEmpty())
     }
 
     @Test
     fun `given metacritic null, detail loads without error`() {
         val detail = givenDetail().copy(metacriticScore = null)
-        val repo = GameDetailRepositoryFake(gameDetailResult = AppResult.Success(detail))
+        val repo = GameDetailRepositoryFake(gameDetailResult = success(detail))
         val useCase = GetGameDetailUseCaseImpl(repo)
         val result = runBlocking { useCase.execute(570, "Dota 2") }
-        assertIs<AppResult.Success<GameDetail>>(result)
-        assertEquals(null, result.data.metacriticScore)
+        assertIs<AppResult.Success<Stale<GameDetail>>>(result)
+        assertEquals(null, result.data.value.metacriticScore)
     }
 }
 

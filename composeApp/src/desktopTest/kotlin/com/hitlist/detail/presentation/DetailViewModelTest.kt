@@ -2,6 +2,7 @@ package com.hitlist.detail.presentation
 
 import com.hitlist.common.domain.AppError
 import com.hitlist.common.domain.AppResult
+import com.hitlist.common.domain.Stale
 import com.hitlist.common.presentation.UiState
 import com.hitlist.detail.domain.GameDetail
 import com.hitlist.detail.domain.GetGameDetailUseCaseFake
@@ -33,7 +34,7 @@ class DetailViewModelTest {
     @Test
     fun `given successful detail load, state is Success`() = runTest {
         val detail = givenDetail()
-        val useCase = GetGameDetailUseCaseFake(AppResult.Success(detail))
+        val useCase = GetGameDetailUseCaseFake(AppResult.Success(Stale(detail, isStale = false)))
         val vm = DetailViewModel(useCase)
         vm.loadDetail(570, "Dota 2")
         testDispatcher.scheduler.advanceUntilIdle()
@@ -41,6 +42,19 @@ class DetailViewModelTest {
         val state = vm.uiState.value.detailState
         assertIs<UiState.Success<*>>(state)
         assertEquals(detail, (state as UiState.Success<*>).data)
+    }
+
+    @Test
+    fun `given stale cache fallback, state is Success with isStale true`() = runTest {
+        val detail = givenDetail()
+        val useCase = GetGameDetailUseCaseFake(AppResult.Success(Stale(detail, isStale = true)))
+        val vm = DetailViewModel(useCase)
+        vm.loadDetail(570, "Dota 2")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = vm.uiState.value.detailState
+        assertIs<UiState.Success<*>>(state)
+        assertTrue((state as UiState.Success<*>).isStale)
     }
 
     @Test
@@ -56,7 +70,7 @@ class DetailViewModelTest {
     @Test
     fun `given CheapShark unavailable, state is Success with empty deals`() = runTest {
         val detail = givenDetail().copy(deals = emptyList())
-        val useCase = GetGameDetailUseCaseFake(AppResult.Success(detail))
+        val useCase = GetGameDetailUseCaseFake(AppResult.Success(Stale(detail, isStale = false)))
         val vm = DetailViewModel(useCase)
         vm.loadDetail(570, "Dota 2")
         testDispatcher.scheduler.advanceUntilIdle()

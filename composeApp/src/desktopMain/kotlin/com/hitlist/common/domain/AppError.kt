@@ -15,6 +15,10 @@ sealed class AppError {
         }
     }
 
+    data object NotFound : AppError() {
+        override fun toUserMessage() = "No encontramos información de este juego"
+    }
+
     data class Unexpected(val cause: Throwable? = null) : AppError() {
         override fun toUserMessage() = "Ocurrió un error inesperado"
     }

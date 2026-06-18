@@ -44,7 +44,7 @@ class RankingViewModel(
         observeJob = viewModelScope.launch {
             getRankedGamesUseCase.observe().collect { result ->
                 when (result) {
-                    is AppResult.Success -> onGamesLoaded(result.data.first, result.data.second)
+                    is AppResult.Success -> onGamesLoaded(result.data.value.games, result.data.isStale)
                     is AppResult.Failure -> _uiState.update {
                         if (it.gamesState is UiState.Success) it
                         else it.copy(gamesState = UiState.Error(result.error))
