@@ -3,6 +3,7 @@ package com.hitlist.news.data
 import com.hitlist.common.data.CachePolicy
 import com.hitlist.common.data.toAppResult
 import com.hitlist.common.domain.AppResult
+import com.hitlist.common.domain.Stale
 import com.hitlist.news.domain.NewsArticle
 import com.hitlist.news.domain.NewsRepository
 
@@ -12,40 +13,32 @@ class NewsRepositoryImpl(
     private val gameNewsSource: GameNewsSource
 ) : NewsRepository {
 
-    override suspend fun getNews(query: String): AppResult<List<NewsArticle>> {
-        val cached = newsCacheSource.getNews(query)
-        if (cached != null && CachePolicy.isValid(cached.second, CachePolicy.NEWS_TTL_MS)) {
-            return AppResult.Success(cached.first)
-        }
+    override suspend fun getNews(query: String): AppResult<Stale<List<NewsArticle>>> =
+        loadNews(cacheKey = query) { generalNewsSource.getNews(query) }
 
-        val freshResult = runCatching {
-            val articles = generalNewsSource.getNews(query)
-            if (articles.isNotEmpty()) newsCacheSource.saveNews(query, articles)
-            articles
-        }.toAppResult()
+    override suspend fun getNewsForGame(appId: Int): AppResult<Stale<List<NewsArticle>>> =
+        loadNews(cacheKey = gameNewsCacheKey(appId)) { gameNewsSource.getNewsForGame(appId) }
 
-        return when (freshResult) {
-            is AppResult.Success -> freshResult
-            is AppResult.Failure -> if (cached != null) AppResult.Success(cached.first) else freshResult
-        }
-    }
-
-    override suspend fun getNewsForGame(appId: Int): AppResult<List<NewsArticle>> {
-        val cacheKey = gameNewsCacheKey(appId)
+    private suspend fun loadNews(
+        cacheKey: String,
+        fetch: suspend () -> List<NewsArticle>
+    ): AppResult<Stale<List<NewsArticle>>> {
         val cached = newsCacheSource.getNews(cacheKey)
         if (cached != null && CachePolicy.isValid(cached.second, CachePolicy.NEWS_TTL_MS)) {
-            return AppResult.Success(cached.first)
+            return AppResult.Success(Stale(cached.first, isStale = false))
         }
 
         val freshResult = runCatching {
-            val articles = gameNewsSource.getNewsForGame(appId)
+            val articles = fetch()
             if (articles.isNotEmpty()) newsCacheSource.saveNews(cacheKey, articles)
             articles
         }.toAppResult()
 
         return when (freshResult) {
-            is AppResult.Success -> freshResult
-            is AppResult.Failure -> if (cached != null) AppResult.Success(cached.first) else freshResult
+            is AppResult.Success -> AppResult.Success(Stale(freshResult.data, isStale = false))
+            is AppResult.Failure ->
+                if (cached != null) AppResult.Success(Stale(cached.first, isStale = true))
+                else freshResult
         }
     }
 
