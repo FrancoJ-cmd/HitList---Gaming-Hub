@@ -36,11 +36,14 @@ class RankingViewModelTest {
 
     @Test
     fun `given successful load, state transitions to Success with game list`() = runTest {
+        // Arrange
         val games = listOf(givenGame(1), givenGame(2))
         val useCase = GetRankedGamesUseCaseFake(AppResult.Success(Stale(Ranking(games), isStale = false)))
+        // Act
         val vm = RankingViewModel(useCase)
         testDispatcher.scheduler.advanceUntilIdle()
 
+        // Assert
         val state = vm.uiState.value
         assertIs<UiState.Success<*>>(state.gamesState)
         assertEquals(games, (state.gamesState as UiState.Success<*>).data)
@@ -48,20 +51,26 @@ class RankingViewModelTest {
 
     @Test
     fun `given network failure, state transitions to Error`() = runTest {
+        // Arrange
         val useCase = GetRankedGamesUseCaseFake(AppResult.Failure(AppError.Network.NoConnection))
+        // Act
         val vm = RankingViewModel(useCase)
         testDispatcher.scheduler.advanceUntilIdle()
 
+        // Assert
         assertIs<UiState.Error>(vm.uiState.value.gamesState)
     }
 
     @Test
     fun `given offline data, state is Success with isStale true`() = runTest {
+        // Arrange
         val games = listOf(givenGame(1))
         val useCase = GetRankedGamesUseCaseFake(AppResult.Success(Stale(Ranking(games), isStale = true)))
+        // Act
         val vm = RankingViewModel(useCase)
         testDispatcher.scheduler.advanceUntilIdle()
 
+        // Assert
         val state = vm.uiState.value.gamesState
         assertIs<UiState.Success<*>>(state)
         assertTrue((state as UiState.Success<*>).isStale)
@@ -69,12 +78,16 @@ class RankingViewModelTest {
 
     @Test
     fun `given genre filter applied, only matching games are shown`() = runTest {
+        // Arrange
         val games = listOf(givenGame(1, "Action"), givenGame(2, "RPG"))
         val useCase = GetRankedGamesUseCaseFake(AppResult.Success(Stale(Ranking(games), isStale = false)))
         val vm = RankingViewModel(useCase)
         testDispatcher.scheduler.advanceUntilIdle()
 
+        // Act
         vm.selectGenre("Action")
+
+        // Assert
         val filtered = (vm.uiState.value.gamesState as UiState.Success<*>).data as List<*>
         assertEquals(1, filtered.size)
         assertEquals(1, (filtered[0] as RankedGame).steamAppId)
@@ -82,13 +95,17 @@ class RankingViewModelTest {
 
     @Test
     fun `given Todos genre selected, full list is restored`() = runTest {
+        // Arrange
         val games = listOf(givenGame(1, "Action"), givenGame(2, "RPG"))
         val useCase = GetRankedGamesUseCaseFake(AppResult.Success(Stale(Ranking(games), isStale = false)))
         val vm = RankingViewModel(useCase)
         testDispatcher.scheduler.advanceUntilIdle()
 
+        // Act
         vm.selectGenre("Action")
         vm.selectGenre(null)
+
+        // Assert
         val all = (vm.uiState.value.gamesState as UiState.Success<*>).data as List<*>
         assertEquals(2, all.size)
     }

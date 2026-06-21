@@ -24,47 +24,62 @@ class GetGameDetailUseCaseImplTest {
 
     @Test
     fun `given valid appId, detail is returned`() {
+        // Arrange
         val detail = givenDetail()
         val repo = GameDetailRepositoryFake(gameDetailResult = success(detail))
         val useCase = GetGameDetailUseCaseImpl(repo)
+        // Act
         val result = runBlocking { useCase.execute(570, "Dota 2") }
+        // Assert
         assertIs<AppResult.Success<Stale<GameDetail>>>(result)
         assertEquals(detail, result.data.value)
     }
 
     @Test
     fun `given appdetails failure, error is propagated`() {
+        // Arrange
         val repo = GameDetailRepositoryFake(gameDetailResult = AppResult.Failure(AppError.Network.NoConnection))
         val useCase = GetGameDetailUseCaseImpl(repo)
+        // Act
         val result = runBlocking { useCase.execute(99999, "Unknown") }
+        // Assert
         assertIs<AppResult.Failure>(result)
     }
 
     @Test
     fun `given stale cache fallback, stale flag is propagated`() {
+        // Arrange
         val repo = GameDetailRepositoryFake(gameDetailResult = success(givenDetail(), isStale = true))
         val useCase = GetGameDetailUseCaseImpl(repo)
+        // Act
         val result = runBlocking { useCase.execute(570, "Dota 2") }
+        // Assert
         assertIs<AppResult.Success<Stale<GameDetail>>>(result)
         assertTrue(result.data.isStale)
     }
 
     @Test
     fun `given CheapShark unavailable, detail is returned with empty deals`() {
+        // Arrange
         val detail = givenDetail(deals = emptyList())
         val repo = GameDetailRepositoryFake(gameDetailResult = success(detail))
         val useCase = GetGameDetailUseCaseImpl(repo)
+        // Act
         val result = runBlocking { useCase.execute(570, "Dota 2") }
+        // Assert
         assertIs<AppResult.Success<Stale<GameDetail>>>(result)
         assertTrue(result.data.value.deals.isEmpty())
     }
 
     @Test
     fun `given metacritic null, detail loads without error`() {
+        // Arrange
         val detail = givenDetail().copy(metacriticScore = null)
         val repo = GameDetailRepositoryFake(gameDetailResult = success(detail))
         val useCase = GetGameDetailUseCaseImpl(repo)
+        // Act
         val result = runBlocking { useCase.execute(570, "Dota 2") }
+        // Assert
         assertIs<AppResult.Success<Stale<GameDetail>>>(result)
         assertEquals(null, result.data.value.metacriticScore)
     }

@@ -43,7 +43,7 @@ class GameDetailRepositoryImpl(
         val review = reviewSource.getGameReviews(appId)
         val deals = dealsSource.getDeals(name)
         val totalReviews = review?.totalReviews ?: 0
-        val positiveRatio = if (totalReviews > 0 && review != null)
+        val positiveRatio = if (review != null && totalReviews > 0)
             review.totalPositive.toDouble() / totalReviews
         else 0.0
 
@@ -60,7 +60,7 @@ class GameDetailRepositoryImpl(
             isFree = metadata.isFree,
             currentPlayers = playerCountSource.getCurrentPlayers(appId),
             positiveRatio = positiveRatio,
-            reviewScoreDesc = review?.reviewScoreDesc ?: "",
+            reviewScoreDesc = if (review != null) review.reviewScoreDesc else "",
             totalReviews = totalReviews,
             deals = deals
         ).also { gameDetailCacheSource.saveGameDetail(it) }

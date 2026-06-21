@@ -31,15 +31,19 @@ class NewsFileCacheTest {
 
     @Test
     fun `given saved news, they are retrieved by query`() {
+        // Arrange
         val articles = listOf(givenArticle())
         cache.saveNews("gaming", articles)
+        // Act
         val loaded = cache.getNews("gaming")
+        // Assert
         assertNotNull(loaded)
         assertEquals(articles, loaded.first)
     }
 
     @Test
     fun `given no saved data, getNews returns null`() {
+        // Act & Assert
         assertNull(cache.getNews("gaming"))
     }
 }

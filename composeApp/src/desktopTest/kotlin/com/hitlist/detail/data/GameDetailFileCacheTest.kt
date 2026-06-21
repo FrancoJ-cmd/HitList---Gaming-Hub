@@ -34,15 +34,19 @@ class GameDetailFileCacheTest {
 
     @Test
     fun `given saved game detail, it is retrieved by appId`() {
+        // Arrange
         val detail = givenDetail()
         cache.saveGameDetail(detail)
+        // Act
         val loaded = cache.getGameDetail(570)
+        // Assert
         assertNotNull(loaded)
         assertEquals(detail, loaded.first)
     }
 
     @Test
     fun `given no saved data, getGameDetail returns null`() {
+        // Act & Assert
         assertNull(cache.getGameDetail(570))
     }
 }

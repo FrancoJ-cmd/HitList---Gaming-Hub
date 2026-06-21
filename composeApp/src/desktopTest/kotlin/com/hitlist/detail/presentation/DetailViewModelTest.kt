@@ -33,12 +33,15 @@ class DetailViewModelTest {
 
     @Test
     fun `given successful detail load, state is Success`() = runTest {
+        // Arrange
         val detail = givenDetail()
         val useCase = GetGameDetailUseCaseFake(AppResult.Success(Stale(detail, isStale = false)))
         val vm = DetailViewModel(useCase)
+        // Act
         vm.loadDetail(570, "Dota 2")
         testDispatcher.scheduler.advanceUntilIdle()
 
+        // Assert
         val state = vm.uiState.value.detailState
         assertIs<UiState.Success<*>>(state)
         assertEquals(detail, (state as UiState.Success<*>).data)
@@ -46,12 +49,15 @@ class DetailViewModelTest {
 
     @Test
     fun `given stale cache fallback, state is Success with isStale true`() = runTest {
+        // Arrange
         val detail = givenDetail()
         val useCase = GetGameDetailUseCaseFake(AppResult.Success(Stale(detail, isStale = true)))
         val vm = DetailViewModel(useCase)
+        // Act
         vm.loadDetail(570, "Dota 2")
         testDispatcher.scheduler.advanceUntilIdle()
 
+        // Assert
         val state = vm.uiState.value.detailState
         assertIs<UiState.Success<*>>(state)
         assertTrue((state as UiState.Success<*>).isStale)
@@ -59,22 +65,28 @@ class DetailViewModelTest {
 
     @Test
     fun `given detail failure, state is Error`() = runTest {
+        // Arrange
         val useCase = GetGameDetailUseCaseFake(AppResult.Failure(AppError.Network.NoConnection))
         val vm = DetailViewModel(useCase)
+        // Act
         vm.loadDetail(99999, "Unknown")
         testDispatcher.scheduler.advanceUntilIdle()
 
+        // Assert
         assertIs<UiState.Error>(vm.uiState.value.detailState)
     }
 
     @Test
     fun `given CheapShark unavailable, state is Success with empty deals`() = runTest {
+        // Arrange
         val detail = givenDetail().copy(deals = emptyList())
         val useCase = GetGameDetailUseCaseFake(AppResult.Success(Stale(detail, isStale = false)))
         val vm = DetailViewModel(useCase)
+        // Act
         vm.loadDetail(570, "Dota 2")
         testDispatcher.scheduler.advanceUntilIdle()
 
+        // Assert
         val state = vm.uiState.value.detailState
         assertIs<UiState.Success<*>>(state)
         assertTrue(((state as UiState.Success<*>).data as GameDetail).deals.isEmpty())
