@@ -4,11 +4,6 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
 
-/**
- * Generic JSON-file persistence helper. It knows *how* to store any value on disk,
- * but nothing about *what* is stored, so it carries no dependency on any feature.
- * Each feature owns its own cache adapter on top of this.
- */
 class JsonFileStore(private val cacheDir: File = defaultCacheDir()) {
 
     @PublishedApi

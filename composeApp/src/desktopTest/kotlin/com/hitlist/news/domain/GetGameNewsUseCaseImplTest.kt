@@ -13,10 +13,13 @@ class GetGameNewsUseCaseImplTest {
 
     @Test
     fun `given appId, routes to getNewsForGame`() {
+        // Arrange
         val articles = listOf(givenArticle("CS2 Update"))
         val repo = NewsRepositoryFake(gameNewsResult = AppResult.Success(Stale(articles, false)))
         val useCase = GetGameNewsUseCaseImpl(repo)
+        // Act
         val result = runBlocking { useCase.execute(730) }
+        // Assert
         assertEquals(730, repo.lastAppId)
         assertIs<AppResult.Success<Stale<List<NewsArticle>>>>(result)
         assertEquals(articles, result.data.value)
