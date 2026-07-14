@@ -51,3 +51,6 @@ gradle.properties
 .DS_Store
 .kotlin/
 .claude/
+
+# machine-local gradle config, never commit (API keys live here)
+local.properties
